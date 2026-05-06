@@ -9,6 +9,7 @@ import (
 
 	"github.com/quix/tforge/internal/core/events"
 	"github.com/quix/tforge/internal/core/state"
+	"github.com/quix/tforge/internal/history"
 	resources "github.com/quix/tforge/internal/modules/resources"
 )
 
@@ -32,6 +33,13 @@ type Model struct {
 	confirmMode   bool
 	confirmAction string
 	confirmCursor int
+
+	historyMode    bool
+	historyDetail  bool
+	historyCursor  int
+	historyScroll  int
+	historyErr     error
+	historyEntries []history.Entry
 
 	selected map[string]bool
 
@@ -61,6 +69,13 @@ func (m Model) Init() tea.Cmd {
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case historyLoadedMsg:
+		m.historyErr = msg.err
+		m.historyEntries = msg.entries
+		m.historyCursor = 0
+		m.historyScroll = 0
+		return m, nil
+
 	case scanFinishedMsg:
 		m.loading = false
 		m.err = msg.err
@@ -181,6 +196,47 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.taskScroll = max(0, len(m.taskLogs)-1)
 			}
 
+			return m, nil
+		}
+
+		if m.historyMode {
+			if m.historyDetail {
+				switch key {
+				case "esc":
+					m.historyDetail = false
+				case "up", "k":
+					if m.historyScroll > 0 {
+						m.historyScroll--
+					}
+				case "down", "j":
+					m.historyScroll++
+				case "pgup":
+					m.historyScroll = max(0, m.historyScroll-10)
+				case "pgdown":
+					m.historyScroll += 10
+				case "home":
+					m.historyScroll = 0
+				}
+				return m, nil
+			}
+
+			switch key {
+			case "esc", "y", "Y":
+				m.historyMode = false
+			case "up", "k":
+				if m.historyCursor > 0 {
+					m.historyCursor--
+				}
+			case "down", "j":
+				if m.historyCursor < len(m.historyEntries)-1 {
+					m.historyCursor++
+				}
+			case "enter":
+				if len(m.historyEntries) > 0 {
+					m.historyDetail = true
+					m.historyScroll = 0
+				}
+			}
 			return m, nil
 		}
 
@@ -354,6 +410,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.hideNoop = !m.hideNoop
 			m.cursor = 0
 
+		case "y", "Y":
+			m.historyMode = true
+			m.historyDetail = false
+			return m, loadHistoryCmd()
+
 		case "ctrl+r":
 			m.loading = true
 			m.err = nil
@@ -414,6 +475,10 @@ func (m Model) View() tea.View {
 
 	if m.taskMode {
 		view = m.renderTaskOverlay(view)
+	}
+
+	if m.historyMode {
+		view = m.renderHistoryOverlay(view)
 	}
 
 	return tea.NewView(view)
@@ -595,6 +660,7 @@ func (m Model) renderHelpBar() string {
 		renderKeyHint("Tab", "action"),
 		renderKeyHint("H", hideText),
 		renderKeyHint("Ctrl+r", "refresh"),
+		renderKeyHint("Y", "history"),
 		renderKeyHint("q", "quit"),
 	}
 
