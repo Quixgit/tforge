@@ -1,0 +1,21 @@
+engine: auto
+
+terraform:
+  binary: terraform
+
+tofu:
+  binary: tofu
+
+terragrunt:
+  binary: terragrunt
+
+ui:
+  theme: tfui
+
+security:
+  mask_secrets: true
+  allow_apply: true
+  allow_destroy: false
+  plugin_mode: builtin-only
+  confirm_apply: true
+  confirm_destroy: true

@@ -20,6 +20,7 @@ func Default() Config {
 
 		Security: SecurityConfig{
 			MaskSecrets:    true,
+			AllowApply:     true,
 			AllowDestroy:   false,
 			PluginMode:     "builtin-only",
 			ConfirmApply:   true,

@@ -7,10 +7,10 @@ type Policy struct {
 	AllowDestroy bool
 }
 
-func DefaultPolicy() Policy {
+func NewPolicy(allowApply, allowDestroy bool) Policy {
 	return Policy{
-		AllowApply:   true,
-		AllowDestroy: false,
+		AllowApply:   allowApply,
+		AllowDestroy: allowDestroy,
 	}
 }
 
