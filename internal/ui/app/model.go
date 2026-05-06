@@ -23,6 +23,11 @@ type Model struct {
 
 	hideNoop bool
 
+	actionMode   bool
+	actionCursor int
+
+	selected map[string]bool
+
 	loading bool
 	err     error
 
@@ -56,6 +61,27 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 
 		if m.filtering {
+
+			if m.actionMode {
+
+				switch msg.String() {
+
+				case "esc":
+					m.actionMode = false
+
+				case "up", "k":
+					if m.actionCursor > 0 {
+						m.actionCursor--
+					}
+
+				case "down", "j":
+					if m.actionCursor < len(actions)-1 {
+						m.actionCursor++
+					}
+				}
+
+				return m, nil
+			}
 
 			switch msg.String() {
 
@@ -134,16 +160,24 @@ func (m Model) View() tea.View {
 
 	content := m.renderListView()
 
-	return tea.NewView(
-		lipgloss.Place(
-			m.width,
-			m.height,
-			lipgloss.Center,
-			lipgloss.Top,
-			content,
-			lipgloss.WithWhitespaceChars(" "),
-		),
+	view := lipgloss.Place(
+		m.width,
+		m.height,
+		lipgloss.Center,
+		lipgloss.Top,
+		content,
+		lipgloss.WithWhitespaceChars(" "),
 	)
+
+	if m.actionMode {
+		view = lipgloss.JoinVertical(
+			lipgloss.Left,
+			view,
+			m.renderActionModal(),
+		)
+	}
+
+	return tea.NewView(view)
 }
 
 func (m Model) renderListView() string {
@@ -230,6 +264,9 @@ func (m Model) resourceRow(idx int, row resources.Row) string {
 	switch {
 	case idx == m.cursor:
 		line = cursorStyle.Render(line)
+	case m.selected[r.Address]:
+		line = selectedStyle.Render(line)
+
 	case r.Selected:
 		line = selectedStyle.Render(line)
 	}
@@ -286,7 +323,8 @@ func (m Model) renderInfoBar() string {
 		info += fmt.Sprintf(" | dir: %s", m.runtime.Dir)
 	}
 
-	info += " | mock scan complete | 4 selected | 1 warnings"
+	info += " | "
+	info += fmt.Sprintf("%d selected", len(m.selected))
 
 	return " " +
 		successStyle.Render("✓") +
