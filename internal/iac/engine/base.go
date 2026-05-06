@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/quix/tforge/internal/cache"
 	"github.com/quix/tforge/internal/core/events"
 	"github.com/quix/tforge/internal/iac/runtime"
 )
@@ -53,12 +54,18 @@ func (b Base) Plan(ctx context.Context, dir string) (<-chan events.Event, error)
 }
 
 func (b Base) Apply(ctx context.Context, dir string) (<-chan events.Event, error) {
+	args := []string{"apply", "-input=false", "-auto-approve", "-no-color"}
+
+	if planfile, err := cache.PlanPath(dir); err == nil {
+		args = []string{"apply", "-input=false", "-auto-approve", "-no-color", planfile}
+	}
+
 	return b.Runner.Stream(ctx, runtime.CommandSpec{
 		Engine:  b.EngineName,
 		Binary:  b.Bin,
 		Dir:     dir,
 		Command: "apply",
-		Args:    []string{"apply", "-input=false", "-auto-approve", "-no-color"},
+		Args:    args,
 	})
 }
 
