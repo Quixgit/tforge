@@ -97,6 +97,8 @@ func (m Model) renderFilterBox() string {
 func (m Model) renderResourcesBox() string {
 	rows := resourcesmod.DemoRows()
 
+	// TODO: replace with real runtime state
+
 	visible := max(1, m.viewHeight-7)
 
 	var b strings.Builder

@@ -1,0 +1,24 @@
+{
+  "format_version": "1.2",
+  "resource_changes": [
+    {
+      "address": "aws_s3_bucket.assets",
+      "module_address": "module.storage",
+      "type": "aws_s3_bucket",
+      "name": "assets",
+      "change": {
+        "actions": ["update"]
+      }
+    },
+    {
+      "address": "aws_iam_role.lambda",
+      "module_address": "module.api",
+      "type": "aws_iam_role",
+      "name": "lambda",
+      "change": {
+        "actions": ["delete","create"]
+      },
+      "action_reason": "replace_because_tainted"
+    }
+  ]
+}
