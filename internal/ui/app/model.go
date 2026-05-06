@@ -6,6 +6,9 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+
+	"github.com/quix/tforge/internal/core/state"
+	resourcesmod "github.com/quix/tforge/internal/modules/resources"
 )
 
 type Model struct {
@@ -92,27 +95,7 @@ func (m Model) renderFilterBox() string {
 }
 
 func (m Model) renderResourcesBox() string {
-	rows := []string{
-		m.resourceLine(0, "", "+/-", "aws_db_instance.main (cannot_update)", warningStyle),
-		m.resourceLine(1, "", "~", "aws_s3_bucket.assets", warningStyle),
-		m.resourceLine(2, "", "~", "aws_s3_bucket.logs", warningStyle),
-		m.resourceLine(3, "", "", "aws_s3_bucket.uploads", lipgloss.NewStyle()),
-		m.resourceLine(4, "", "", "data.aws_region.current", lipgloss.NewStyle()),
-
-		m.moduleLine(5, "", "module.api", true),
-
-		m.resourceLine(6, "├──", "", "module.api.aws_cloudwatch_log_group.api", lipgloss.NewStyle()),
-		m.resourceLine(7, "├──", "+", "module.api.aws_cloudwatch_log_group.api_v2", successStyle),
-		m.resourceLine(8, "├──", "", "module.api.aws_iam_policy.lambda_exec", lipgloss.NewStyle()),
-		m.resourceLine(9, "├──", "-", "module.api.aws_iam_role.api_lambda (delete_because_no_resource_config)", errorStyle),
-		m.resourceLine(10, "├──", "~", "module.api.aws_lambda_function.api", warningStyle),
-		m.resourceLine(11, "└──", "", "module.api.aws_route53_record.api", lipgloss.NewStyle()),
-
-		m.moduleLine(12, "", "module.networking", true),
-
-		m.resourceLine(13, "├──", "~", "module.networking.aws_security_group.web", warningStyle),
-		m.resourceLine(14, "└──", "", "module.networking.aws_vpc.main", lipgloss.NewStyle()),
-	}
+	rows := resourcesmod.DemoRows()
 
 	visible := max(1, m.viewHeight-7)
 
@@ -120,7 +103,12 @@ func (m Model) renderResourcesBox() string {
 
 	for i := 0; i < visible; i++ {
 		if i < len(rows) {
-			fmt.Fprintln(&b, rows[i])
+			switch rows[i].Kind {
+			case resourcesmod.RowModule:
+				fmt.Fprintln(&b, m.moduleRow(i, rows[i]))
+			case resourcesmod.RowResource:
+				fmt.Fprintln(&b, m.resourceRow(i, rows[i]))
+			}
 		} else {
 			fmt.Fprintln(&b)
 		}
@@ -131,52 +119,44 @@ func (m Model) renderResourcesBox() string {
 		Render(strings.TrimSuffix(b.String(), "\n"))
 }
 
-func (m Model) resourceLine(
-	idx int,
-	prefix string,
-	action string,
-	address string,
-	actionStyle lipgloss.Style,
-) string {
-
-	prefixRendered := treePrefixDefaultStyle.Render(prefix)
-
-	if prefix != "" {
-		prefixRendered += " "
+func (m Model) resourceRow(idx int, row resourcesmod.Row) string {
+	r := row.Resource
+	if r == nil {
+		return ""
 	}
 
-	line := strings.TrimSpace(fmt.Sprintf("%s %s", action, address))
+	address := r.Address
+	if r.Reason != "" {
+		address += fmt.Sprintf(" (%s)", r.Reason)
+	}
+
+	prefix := treePrefixDefaultStyle.Render(row.TreePrefix)
+	if row.TreePrefix != "" {
+		prefix += " "
+	}
+
+	line := strings.TrimSpace(fmt.Sprintf("%s %s", r.Action.Symbol(), address))
 
 	switch {
-
 	case idx == m.cursor:
 		line = cursorStyle.Render(line)
-
-	case idx == 1 || idx == 2 || idx == 10 || idx == 13:
+	case r.Selected:
 		line = selectedStyle.Render(line)
 	}
 
-	if actionStyle.GetForeground() != nil {
-		line = actionStyle.Render(line)
-	}
+	line = styleForAction(r.Action).Render(line)
 
-	return prefixRendered + line
+	return prefix + line
 }
 
-func (m Model) moduleLine(
-	idx int,
-	prefix string,
-	name string,
-	expanded bool,
-) string {
-
+func (m Model) moduleRow(idx int, row resourcesmod.Row) string {
 	symbol := "▾"
 
-	if !expanded {
+	if !row.Expanded {
 		symbol = "▸"
 	}
 
-	line := fmt.Sprintf("%s %s", symbol, name)
+	line := fmt.Sprintf("%s %s", symbol, row.Address)
 
 	if idx == m.cursor {
 		line = cursorStyle.Render(line)
@@ -184,7 +164,24 @@ func (m Model) moduleLine(
 		line = moduleStyle.Render(line)
 	}
 
-	return treePrefixCurrentStyle.Render(prefix) + line
+	return treePrefixCurrentStyle.Render(row.TreePrefix) + line
+}
+
+func styleForAction(action state.Action) lipgloss.Style {
+	switch action {
+	case state.ActionCreate:
+		return successStyle
+	case state.ActionDelete:
+		return errorStyle
+	case state.ActionUpdate, state.ActionReplace:
+		return warningStyle
+	case state.ActionMove, state.ActionImport:
+		return lipgloss.NewStyle().Foreground(colorBlue)
+	case state.ActionUncertain:
+		return dimStyle
+	default:
+		return lipgloss.NewStyle()
+	}
 }
 
 func (m Model) renderInfoBar() string {
