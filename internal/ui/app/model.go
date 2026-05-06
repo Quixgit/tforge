@@ -759,6 +759,10 @@ func (m Model) renderInfoBar() string {
 
 	full := fmt.Sprintf("  Engine: %s", engineName)
 
+	if engineName == "terragrunt" {
+		full += " | mode: run-all"
+	}
+
 	if m.runtime.Dir != "" {
 		full += fmt.Sprintf(" | dir: %s", m.runtime.Dir)
 	}
