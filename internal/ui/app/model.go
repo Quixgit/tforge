@@ -8,7 +8,7 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/quix/tforge/internal/core/state"
-	resourcesmod "github.com/quix/tforge/internal/modules/resources"
+	resources "github.com/quix/tforge/internal/modules/resources"
 )
 
 type Model struct {
@@ -18,6 +18,16 @@ type Model struct {
 	viewHeight int
 	cursor     int
 
+	filtering bool
+	filter    string
+
+	hideNoop bool
+
+	loading bool
+	err     error
+
+	rows []resources.Row
+
 	runtime RuntimeInfo
 }
 
@@ -26,7 +36,7 @@ func New() Model {
 }
 
 func (m Model) Init() tea.Cmd {
-	return nil
+	return scanCmd(m.runtime)
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -38,7 +48,37 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.viewWidth = max(40, msg.Width-4)
 		m.viewHeight = max(10, msg.Height-6)
 
+	case scanFinishedMsg:
+		m.loading = false
+		m.rows = msg.rows
+		m.err = msg.err
+
 	case tea.KeyMsg:
+
+		if m.filtering {
+
+			switch msg.String() {
+
+			case "esc":
+				m.filtering = false
+
+			case "enter":
+				m.filtering = false
+
+			case "backspace":
+				if len(m.filter) > 0 {
+					m.filter = m.filter[:len(m.filter)-1]
+				}
+
+			default:
+				if len(msg.String()) == 1 {
+					m.filter += msg.String()
+				}
+			}
+
+			return m, nil
+		}
+
 		switch msg.String() {
 
 		case "q", "ctrl+c":
@@ -50,9 +90,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case "down", "j":
-			if m.cursor < 14 {
+			if m.cursor < len(m.visibleRows())-1 {
 				m.cursor++
 			}
+
+		case "ctrl+r":
+			m.loading = true
+			return m, tea.Cmd(scanCmd(m.runtime))
 		}
 	}
 
@@ -62,6 +106,30 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) View() tea.View {
 	if m.width == 0 || m.height == 0 {
 		return tea.NewView("")
+	}
+
+	if m.loading {
+		return tea.NewView(
+			lipgloss.Place(
+				m.width,
+				m.height,
+				lipgloss.Center,
+				lipgloss.Center,
+				borderStyle.Render("Running terraform plan..."),
+			),
+		)
+	}
+
+	if m.err != nil {
+		return tea.NewView(
+			lipgloss.Place(
+				m.width,
+				m.height,
+				lipgloss.Center,
+				lipgloss.Center,
+				focusedBorderStyle.Render(errorStyle.Render("Scan failed")+"\n\n"+m.err.Error()+"\n\nPress Ctrl+r to retry | q to quit"),
+			),
+		)
 	}
 
 	content := m.renderListView()
@@ -91,11 +159,31 @@ func (m Model) renderListView() string {
 
 func (m Model) renderFilterBox() string {
 	filterContent := "⌕ Press '/' to filter..."
+
+	if m.filtering {
+		filterContent = "⌕ " + m.filter + "█"
+	} else if m.filter != "" {
+		filterContent = "⌕ " + m.filter
+	}
 	return borderStyle.Width(m.viewWidth).Render(filterContent) + "\n"
 }
 
 func (m Model) renderResourcesBox() string {
-	rows := resourcesmod.DemoRows()
+	rows := m.visibleRows()
+
+	if len(rows) == 0 {
+
+		if m.filter != "" {
+			rows = []resources.Row{
+				{
+					Kind:     resources.RowResource,
+					Resource: nil,
+				},
+			}
+		} else {
+			rows = resources.DemoRows()
+		}
+	}
 
 	// TODO: replace with real runtime state
 
@@ -106,9 +194,9 @@ func (m Model) renderResourcesBox() string {
 	for i := 0; i < visible; i++ {
 		if i < len(rows) {
 			switch rows[i].Kind {
-			case resourcesmod.RowModule:
+			case resources.RowModule:
 				fmt.Fprintln(&b, m.moduleRow(i, rows[i]))
-			case resourcesmod.RowResource:
+			case resources.RowResource:
 				fmt.Fprintln(&b, m.resourceRow(i, rows[i]))
 			}
 		} else {
@@ -121,10 +209,10 @@ func (m Model) renderResourcesBox() string {
 		Render(strings.TrimSuffix(b.String(), "\n"))
 }
 
-func (m Model) resourceRow(idx int, row resourcesmod.Row) string {
+func (m Model) resourceRow(idx int, row resources.Row) string {
 	r := row.Resource
 	if r == nil {
-		return ""
+		return dimStyle.Render("No matching resources")
 	}
 
 	address := r.Address
@@ -151,7 +239,7 @@ func (m Model) resourceRow(idx int, row resourcesmod.Row) string {
 	return prefix + line
 }
 
-func (m Model) moduleRow(idx int, row resourcesmod.Row) string {
+func (m Model) moduleRow(idx int, row resources.Row) string {
 	symbol := "▾"
 
 	if !row.Expanded {
