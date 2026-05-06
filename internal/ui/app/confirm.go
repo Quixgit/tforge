@@ -18,6 +18,11 @@ func (m Model) renderConfirmOverlay(background string) string {
 		lines = append(lines, errorStyle.Render("Destroy is disabled by default safety policy."))
 		lines = append(lines, dimStyle.Render("Later we will add --allow-destroy or config-based override."))
 		lines = append(lines, "")
+		if m.confirmAction == "apply" {
+			lines = append(lines, successStyle.Render("Apply will use the last saved plan from cache."))
+			lines = append(lines, dimStyle.Render("Refresh with Ctrl+r before applying if configuration changed."))
+			lines = append(lines, "")
+		}
 	}
 
 	maxShow := min(10, len(selected))

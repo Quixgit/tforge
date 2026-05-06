@@ -2,8 +2,8 @@ package runtime
 
 import (
 	"context"
-	"os"
 
+	"github.com/quix/tforge/internal/cache"
 	"github.com/quix/tforge/internal/core/state"
 	"github.com/quix/tforge/internal/iac/engine"
 	"github.com/quix/tforge/internal/iac/plan"
@@ -11,19 +11,16 @@ import (
 )
 
 func Scan(ctx context.Context, eng engine.Engine, dir string) ([]resourcesmod.Row, error) {
-	tmp, err := os.CreateTemp("", "tforge-*.tfplan")
+	planfile, err := cache.PlanPath(dir)
 	if err != nil {
 		return nil, err
 	}
-	tmpfile := tmp.Name()
-	_ = tmp.Close()
-	defer os.Remove(tmpfile)
 
-	if err := planTerraform(ctx, eng, dir, tmpfile); err != nil {
+	if err := planTerraform(ctx, eng, dir, planfile); err != nil {
 		return nil, err
 	}
 
-	raw, err := showJSON(ctx, eng, dir, tmpfile)
+	raw, err := showJSON(ctx, eng, dir, planfile)
 	if err != nil {
 		return nil, err
 	}
