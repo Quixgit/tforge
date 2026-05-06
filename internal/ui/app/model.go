@@ -26,7 +26,8 @@ type Model struct {
 	actionMode   bool
 	actionCursor int
 
-	detailMode bool
+	detailMode   bool
+	detailScroll int
 
 	selected map[string]bool
 
@@ -175,6 +176,23 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch key {
 			case "esc", "enter", "q":
 				m.detailMode = false
+
+			case "up", "k":
+				if m.detailScroll > 0 {
+					m.detailScroll--
+				}
+
+			case "down", "j":
+				m.detailScroll++
+
+			case "pgup":
+				m.detailScroll = max(0, m.detailScroll-10)
+
+			case "pgdown":
+				m.detailScroll += 10
+
+			case "home":
+				m.detailScroll = 0
 			}
 
 			return m, nil
@@ -259,6 +277,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			row := m.currentRow()
 			if row != nil && row.Resource != nil {
 				m.detailMode = true
+				m.detailScroll = 0
 			}
 
 		case "tab":
