@@ -41,10 +41,11 @@ type Model struct {
 	historyErr     error
 	historyEntries []history.Entry
 
-	workspaceMode   bool
-	workspaceCursor int
-	workspaceErr    error
-	workspaces      []string
+	workspaceMode    bool
+	workspaceCursor  int
+	workspaceErr     error
+	workspaces       []string
+	currentWorkspace string
 
 	selected map[string]bool
 
@@ -225,6 +226,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.taskScroll = max(0, len(m.taskLogs)-1)
 			}
 
+			return m, nil
+		}
+
+		if m.analyticsMode {
+			switch key {
+			case "esc", "a", "A", "q":
+				m.analyticsMode = false
+			}
 			return m, nil
 		}
 
@@ -495,6 +504,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.hideNoop = !m.hideNoop
 			m.cursor = 0
 
+		case "a", "A":
+			m.analyticsMode = true
+
 		case "w", "W":
 			m.workspaceMode = true
 			return m, loadWorkspacesCmd(m.runtime)
@@ -572,6 +584,10 @@ func (m Model) View() tea.View {
 
 	if m.workspaceMode {
 		view = m.renderWorkspaceOverlay(view)
+	}
+
+	if m.analyticsMode {
+		view = m.renderAnalyticsOverlay(view)
 	}
 
 	return tea.NewView(view)
@@ -757,7 +773,9 @@ func (m Model) renderHelpBar() string {
 		renderKeyHint("Tab", "action"),
 		renderKeyHint("H", hideText),
 		renderKeyHint("Ctrl+r", "refresh"),
+		renderKeyHint("A", "analytics"),
 		renderKeyHint("W", "workspaces"),
+		renderKeyHint("A", "analytics"),
 		renderKeyHint("W", "workspaces"),
 		renderKeyHint("Y", "history"),
 		renderKeyHint("q", "quit"),

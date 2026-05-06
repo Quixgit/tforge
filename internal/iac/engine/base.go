@@ -106,3 +106,14 @@ func (b Base) Workspaces(ctx context.Context, dir string) ([]string, error) {
 
 	return workspaces, nil
 }
+
+func (b Base) SelectWorkspace(ctx context.Context, dir string, name string) error {
+	_, err := b.Runner.Output(ctx, runtime.CommandSpec{
+		Engine:  b.EngineName,
+		Binary:  b.Bin,
+		Dir:     dir,
+		Command: "workspace select",
+		Args:    []string{"workspace", "select", name},
+	})
+	return err
+}
