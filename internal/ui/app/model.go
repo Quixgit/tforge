@@ -501,13 +501,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "/":
 			m.filtering = true
 			m.filter = ""
-			m.cursor = 0
-			m.offset = 0
+			m.resetCursor()
 
 		case "h", "H":
 			m.hideNoop = !m.hideNoop
-			m.cursor = 0
-			m.offset = 0
+			m.resetCursor()
 
 		case "a", "A":
 			m.analyticsMode = true
