@@ -36,12 +36,13 @@ func (a Action) Symbol() string {
 }
 
 type Resource struct {
-	Address string
-	Module  string
-	Type    string
-	Name    string
-	Action  Action
-	Reason  string
+	Address  string
+	Module   string
+	Type     string
+	Name     string
+	Provider string
+	Action   Action
+	Reason   string
 
 	Before map[string]any
 	After  map[string]any
