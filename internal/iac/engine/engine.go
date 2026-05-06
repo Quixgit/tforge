@@ -17,4 +17,5 @@ type Engine interface {
 
 	StatePull(ctx context.Context, dir string) ([]byte, error)
 	Workspaces(ctx context.Context, dir string) ([]string, error)
+	SelectWorkspace(ctx context.Context, dir string, name string) error
 }
