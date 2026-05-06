@@ -26,12 +26,15 @@ type Model struct {
 	actionMode   bool
 	actionCursor int
 
+	detailMode bool
+
 	selected map[string]bool
 
 	taskMode   bool
 	taskLogs   []string
 	taskName   string
 	taskDone   bool
+	taskScroll int
 	taskEvents <-chan events.Event
 
 	loading bool
@@ -101,13 +104,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case events.TypeStdout:
 			if msg.event.Line != "" {
 				m.taskLogs = append(m.taskLogs, msg.event.Line)
+				m.taskScroll = max(0, len(m.taskLogs)-1)
 			}
 		case events.TypeStderr:
 			if msg.event.Line != "" {
 				m.taskLogs = append(m.taskLogs, "stderr: "+msg.event.Line)
+				m.taskScroll = max(0, len(m.taskLogs)-1)
 			}
 		case events.TypeFinished:
 			m.taskLogs = append(m.taskLogs, fmt.Sprintf("Finished with exit code %d", msg.event.ExitCode))
+			m.taskScroll = max(0, len(m.taskLogs)-1)
 			m.taskDone = true
 			return m, nil
 		case events.TypeError:
@@ -138,6 +144,37 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			case "esc", "q":
 				m.taskMode = false
+
+			case "up", "k":
+				if m.taskScroll > 0 {
+					m.taskScroll--
+				}
+
+			case "down", "j":
+				if m.taskScroll < max(0, len(m.taskLogs)-1) {
+					m.taskScroll++
+				}
+
+			case "pgup":
+				m.taskScroll = max(0, m.taskScroll-10)
+
+			case "pgdown":
+				m.taskScroll = min(max(0, len(m.taskLogs)-1), m.taskScroll+10)
+
+			case "home":
+				m.taskScroll = 0
+
+			case "end":
+				m.taskScroll = max(0, len(m.taskLogs)-1)
+			}
+
+			return m, nil
+		}
+
+		if m.detailMode {
+			switch key {
+			case "esc", "enter", "q":
+				m.detailMode = false
 			}
 
 			return m, nil
@@ -218,6 +255,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.selected[addr] = !m.selected[addr]
 			}
 
+		case "enter":
+			row := m.currentRow()
+			if row != nil && row.Resource != nil {
+				m.detailMode = true
+			}
+
 		case "tab":
 			m.actionMode = true
 			m.actionCursor = 0
@@ -279,6 +322,10 @@ func (m Model) View() tea.View {
 
 	if m.actionMode {
 		view = m.renderActionModalOverlay(view)
+	}
+
+	if m.detailMode {
+		view = m.renderDetailOverlay(view)
 	}
 
 	if m.taskMode {

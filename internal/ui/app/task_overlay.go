@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -12,37 +13,56 @@ func (m Model) renderTaskOverlay(background string) string {
 		title = "Finished " + m.taskName
 	}
 
+	boxW := min(120, m.width-10)
+	boxH := min(34, m.height-6)
+
+	viewportH := max(1, boxH-7)
+
 	logs := m.taskLogs
-	maxLines := max(1, min(24, m.height-12))
-	if len(logs) > maxLines {
-		logs = logs[len(logs)-maxLines:]
+	if len(logs) == 0 {
+		logs = []string{"Starting..."}
 	}
 
-	content := strings.Join(logs, "\n")
-	if content == "" {
-		content = "Starting..."
+	start := m.taskScroll - viewportH + 1
+	if start < 0 {
+		start = 0
+	}
+	if start > len(logs) {
+		start = len(logs)
 	}
 
-	footer := "\n\nEsc close"
+	end := min(len(logs), start+viewportH)
+
+	visible := logs[start:end]
+
+	for len(visible) < viewportH {
+		visible = append(visible, "")
+	}
+
+	scrollInfo := fmt.Sprintf(" lines %d-%d/%d ", start+1, end, len(logs))
+
+	footer := "↑/↓ scroll | PgUp/PgDn | Home/End | Esc close"
 	if !m.taskDone {
-		footer = "\n\nRunning... | Esc hide"
+		footer = "Running... | ↑/↓ scroll | Esc hide"
 	}
+
+	content := infoBarStyle.Render(title) +
+		dimStyle.Render(scrollInfo) +
+		"\n\n" +
+		strings.Join(visible, "\n") +
+		"\n" +
+		dimStyle.Render(footer)
 
 	box := focusedBorderStyle.
-		Width(min(120, m.width-10)).
-		Height(min(32, m.height-6)).
-		Render(
-			infoBarStyle.Render(title) +
-				"\n\n" +
-				content +
-				dimStyle.Render(footer),
-		)
+		Width(boxW).
+		Height(boxH).
+		Render(content)
 
-	boxW := lipgloss.Width(box)
-	boxH := lipgloss.Height(box)
+	w := lipgloss.Width(box)
+	h := lipgloss.Height(box)
 
-	x := max(0, (m.width-boxW)/2)
-	y := max(0, (m.height-boxH)/2)
+	x := max(0, (m.width-w)/2)
+	y := max(0, (m.height-h)/2)
 
 	bg := lipgloss.NewLayer(background)
 	fg := lipgloss.NewLayer(box).X(x).Y(y).Z(1)
