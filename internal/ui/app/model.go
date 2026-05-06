@@ -29,6 +29,10 @@ type Model struct {
 	detailMode   bool
 	detailScroll int
 
+	confirmMode   bool
+	confirmAction string
+	confirmCursor int
+
 	selected map[string]bool
 
 	taskMode   bool
@@ -69,6 +73,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.taskLogs = append(m.taskLogs, "")
 			m.taskLogs = append(m.taskLogs, "ERROR:")
 			m.taskLogs = append(m.taskLogs, msg.err.Error())
+			m.taskLogs = append(m.taskLogs, "")
+			m.taskLogs = append(m.taskLogs, "Safety policy blocked this action.")
 		} else {
 			m.taskLogs = append(m.taskLogs, "")
 			m.taskLogs = append(m.taskLogs, "Task completed successfully")
@@ -172,6 +178,45 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
+		if m.confirmMode {
+			switch key {
+			case "esc", "q":
+				m.confirmMode = false
+
+			case "left", "h":
+				m.confirmCursor = 0
+
+			case "right", "l":
+				m.confirmCursor = 1
+
+			case "tab":
+				if m.confirmCursor == 0 {
+					m.confirmCursor = 1
+				} else {
+					m.confirmCursor = 0
+				}
+
+			case "enter":
+				if m.confirmCursor == 0 {
+					m.confirmMode = false
+					return m, nil
+				}
+
+				m.confirmMode = false
+				m.taskMode = true
+				m.taskName = m.confirmAction
+				m.taskDone = false
+				m.taskScroll = 0
+				m.taskLogs = []string{
+					"Preparing execution...",
+				}
+
+				return m, startTaskCmd(m.runtime, m.confirmAction)
+			}
+
+			return m, nil
+		}
+
 		if m.detailMode {
 			switch key {
 			case "esc", "enter", "q":
@@ -218,8 +263,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				action := actions[m.actionCursor]
 
 				m.actionMode = false
+
+				if action == "apply" || action == "destroy" {
+					m.confirmMode = true
+					m.confirmAction = action
+					m.confirmCursor = 0
+					return m, nil
+				}
+
 				m.taskMode = true
 				m.taskName = action
+				m.taskDone = false
+				m.taskScroll = 0
 				m.taskLogs = []string{
 					"Preparing execution...",
 				}
@@ -339,12 +394,16 @@ func (m Model) View() tea.View {
 		lipgloss.WithWhitespaceChars(" "),
 	)
 
+	if m.detailMode {
+		view = m.renderDetailOverlay(view)
+	}
+
 	if m.actionMode {
 		view = m.renderActionModalOverlay(view)
 	}
 
-	if m.detailMode {
-		view = m.renderDetailOverlay(view)
+	if m.confirmMode {
+		view = m.renderConfirmOverlay(view)
 	}
 
 	if m.taskMode {
