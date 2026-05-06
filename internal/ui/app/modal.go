@@ -1,39 +1,45 @@
 package app
 
 import (
+	"fmt"
 	"strings"
 
 	"charm.land/lipgloss/v2"
 )
 
-func (m Model) renderActionModal() string {
+func (m Model) renderActionModalOverlay(background string) string {
+	var b strings.Builder
 
-	items := make([]string, 0, len(actions))
+	title := fmt.Sprintf("%d resource(s) selected", countSelected(m.selected))
+	help := "Enter to choose | Esc to cancel"
+
+	width := max(lipgloss.Width(title), lipgloss.Width(help)) + 8
+	centered := lipgloss.NewStyle().Width(width).Align(lipgloss.Center)
+
+	fmt.Fprintln(&b, centered.Render(title))
+	fmt.Fprintln(&b, centered.Render(strings.Repeat("─", width-6)))
 
 	for i, action := range actions {
-
-		line := "  " + action
-
+		line := "    " + action
 		if i == m.actionCursor {
-			line = cursorStyle.Render("> " + action)
+			line = cursorStyle.Render("  > " + action)
 		}
-
-		items = append(items, line)
+		fmt.Fprintln(&b, line)
 	}
 
-	content := strings.Join(items, "\n")
+	fmt.Fprintln(&b)
+	fmt.Fprintln(&b, centered.Render(help))
 
-	title := infoBarStyle.Render("Actions")
+	modal := focusedBorderStyle.Render(b.String())
 
-	box := focusedBorderStyle.
-		Padding(1, 3).
-		Render(title + "\n\n" + content)
+	modalW := lipgloss.Width(modal)
+	modalH := lipgloss.Height(modal)
 
-	return lipgloss.Place(
-		m.width,
-		m.height,
-		lipgloss.Center,
-		lipgloss.Center,
-		box,
-	)
+	x := max(0, (m.width-modalW)/2)
+	y := max(0, (m.height-modalH)/2)
+
+	bg := lipgloss.NewLayer(background)
+	fg := lipgloss.NewLayer(modal).X(x).Y(y).Z(1)
+
+	return lipgloss.NewCompositor(bg, fg).Render()
 }

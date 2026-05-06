@@ -20,24 +20,28 @@ type Model struct {
 
 	filtering bool
 	filter    string
-
-	hideNoop bool
+	hideNoop  bool
 
 	actionMode   bool
 	actionCursor int
 
 	selected map[string]bool
 
+	taskMode bool
+	taskLogs []string
+	taskName string
+
 	loading bool
 	err     error
-
-	rows []resources.Row
+	rows    []resources.Row
 
 	runtime RuntimeInfo
 }
 
 func New() Model {
-	return Model{}
+	return Model{
+		selected: map[string]bool{},
+	}
 }
 
 func (m Model) Init() tea.Cmd {
@@ -46,67 +50,100 @@ func (m Model) Init() tea.Cmd {
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case scanFinishedMsg:
+		m.loading = false
+		m.err = msg.err
+		m.rows = msg.rows
+		return m, nil
+
+	case taskFinishedMsg:
+
+		if msg.err != nil {
+			m.taskLogs = append(m.taskLogs, "")
+			m.taskLogs = append(m.taskLogs, "ERROR:")
+			m.taskLogs = append(m.taskLogs, msg.err.Error())
+		} else {
+			m.taskLogs = append(m.taskLogs, "")
+			m.taskLogs = append(m.taskLogs, "Task completed successfully")
+		}
+
+		return m, nil
 
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
 		m.viewWidth = max(40, msg.Width-4)
 		m.viewHeight = max(10, msg.Height-6)
-
-	case scanFinishedMsg:
-		m.loading = false
-		m.rows = msg.rows
-		m.err = msg.err
+		return m, nil
 
 	case tea.KeyMsg:
+		key := msg.String()
 
-		if m.filtering {
+		if m.taskMode {
 
-			if m.actionMode {
+			switch key {
 
-				switch msg.String() {
-
-				case "esc":
-					m.actionMode = false
-
-				case "up", "k":
-					if m.actionCursor > 0 {
-						m.actionCursor--
-					}
-
-				case "down", "j":
-					if m.actionCursor < len(actions)-1 {
-						m.actionCursor++
-					}
-				}
-
-				return m, nil
-			}
-
-			switch msg.String() {
-
-			case "esc":
-				m.filtering = false
-
-			case "enter":
-				m.filtering = false
-
-			case "backspace":
-				if len(m.filter) > 0 {
-					m.filter = m.filter[:len(m.filter)-1]
-				}
-
-			default:
-				if len(msg.String()) == 1 {
-					m.filter += msg.String()
-				}
+			case "esc", "q":
+				m.taskMode = false
 			}
 
 			return m, nil
 		}
 
-		switch msg.String() {
+		if m.actionMode {
+			switch key {
+			case "esc", "tab":
+				m.actionMode = false
 
+			case "up", "k":
+				if m.actionCursor > 0 {
+					m.actionCursor--
+				}
+
+			case "down", "j":
+				if m.actionCursor < len(actions)-1 {
+					m.actionCursor++
+				}
+
+			case "enter":
+
+				action := actions[m.actionCursor]
+
+				m.actionMode = false
+				m.taskMode = true
+				m.taskName = action
+				m.taskLogs = []string{
+					"Preparing execution...",
+				}
+
+				return m, runTaskCmd(m.runtime, action)
+
+			case "q", "ctrl+c":
+				return m, tea.Quit
+			}
+			return m, nil
+		}
+
+		if m.filtering {
+			switch key {
+			case "esc", "enter":
+				m.filtering = false
+			case "backspace":
+				if len(m.filter) > 0 {
+					m.filter = m.filter[:len(m.filter)-1]
+				}
+			case "q", "ctrl+c":
+				return m, tea.Quit
+			default:
+				if len(key) == 1 {
+					m.filter += key
+					m.cursor = 0
+				}
+			}
+			return m, nil
+		}
+
+		switch key {
 		case "q", "ctrl+c":
 			return m, tea.Quit
 
@@ -116,13 +153,35 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case "down", "j":
-			if m.cursor < len(m.visibleRows())-1 {
+			rows := m.visibleRows()
+			if m.cursor < len(rows)-1 {
 				m.cursor++
 			}
 
+		case " ", "space":
+			row := m.currentRow()
+			if row != nil && row.Resource != nil {
+				addr := row.Resource.Address
+				m.selected[addr] = !m.selected[addr]
+			}
+
+		case "tab":
+			m.actionMode = true
+			m.actionCursor = 0
+
+		case "/":
+			m.filtering = true
+			m.filter = ""
+			m.cursor = 0
+
+		case "h", "H":
+			m.hideNoop = !m.hideNoop
+			m.cursor = 0
+
 		case "ctrl+r":
 			m.loading = true
-			return m, tea.Cmd(scanCmd(m.runtime))
+			m.err = nil
+			return m, scanCmd(m.runtime)
 		}
 	}
 
@@ -135,27 +194,23 @@ func (m Model) View() tea.View {
 	}
 
 	if m.loading {
-		return tea.NewView(
-			lipgloss.Place(
-				m.width,
-				m.height,
-				lipgloss.Center,
-				lipgloss.Center,
-				borderStyle.Render("Running terraform plan..."),
-			),
-		)
+		return tea.NewView(lipgloss.Place(
+			m.width,
+			m.height,
+			lipgloss.Center,
+			lipgloss.Center,
+			borderStyle.Render("Running terraform plan..."),
+		))
 	}
 
 	if m.err != nil {
-		return tea.NewView(
-			lipgloss.Place(
-				m.width,
-				m.height,
-				lipgloss.Center,
-				lipgloss.Center,
-				focusedBorderStyle.Render(errorStyle.Render("Scan failed")+"\n\n"+m.err.Error()+"\n\nPress Ctrl+r to retry | q to quit"),
-			),
-		)
+		return tea.NewView(lipgloss.Place(
+			m.width,
+			m.height,
+			lipgloss.Center,
+			lipgloss.Center,
+			focusedBorderStyle.Render(errorStyle.Render("Scan failed")+"\n\n"+m.err.Error()+"\n\nPress Ctrl+r to retry | q to quit"),
+		))
 	}
 
 	content := m.renderListView()
@@ -170,11 +225,11 @@ func (m Model) View() tea.View {
 	)
 
 	if m.actionMode {
-		view = lipgloss.JoinVertical(
-			lipgloss.Left,
-			view,
-			m.renderActionModal(),
-		)
+		view = m.renderActionModalOverlay(view)
+	}
+
+	if m.taskMode {
+		view = m.renderTaskOverlay(view)
 	}
 
 	return tea.NewView(view)
@@ -199,27 +254,15 @@ func (m Model) renderFilterBox() string {
 	} else if m.filter != "" {
 		filterContent = "⌕ " + m.filter
 	}
+
 	return borderStyle.Width(m.viewWidth).Render(filterContent) + "\n"
 }
 
 func (m Model) renderResourcesBox() string {
 	rows := m.visibleRows()
-
 	if len(rows) == 0 {
-
-		if m.filter != "" {
-			rows = []resources.Row{
-				{
-					Kind:     resources.RowResource,
-					Resource: nil,
-				},
-			}
-		} else {
-			rows = resources.DemoRows()
-		}
+		rows = resources.DemoRows()
 	}
-
-	// TODO: replace with real runtime state
 
 	visible := max(1, m.viewHeight-7)
 
@@ -259,14 +302,23 @@ func (m Model) resourceRow(idx int, row resources.Row) string {
 		prefix += " "
 	}
 
-	line := strings.TrimSpace(fmt.Sprintf("%s %s", r.Action.Symbol(), address))
+	check := "[ ]"
+	if m.selected[r.Address] {
+		check = "[x]"
+	}
+
+	pointer := "  "
+	if idx == m.cursor {
+		pointer = "> "
+	}
+
+	line := strings.TrimSpace(fmt.Sprintf("%s%s %s %s", pointer, check, r.Action.Symbol(), address))
 
 	switch {
 	case idx == m.cursor:
 		line = cursorStyle.Render(line)
 	case m.selected[r.Address]:
 		line = selectedStyle.Render(line)
-
 	case r.Selected:
 		line = selectedStyle.Render(line)
 	}
@@ -278,12 +330,16 @@ func (m Model) resourceRow(idx int, row resources.Row) string {
 
 func (m Model) moduleRow(idx int, row resources.Row) string {
 	symbol := "▾"
-
 	if !row.Expanded {
 		symbol = "▸"
 	}
 
-	line := fmt.Sprintf("%s %s", symbol, row.Address)
+	pointer := "  "
+	if idx == m.cursor {
+		pointer = "> "
+	}
+
+	line := fmt.Sprintf("%s%s %s", pointer, symbol, row.Address)
 
 	if idx == m.cursor {
 		line = cursorStyle.Render(line)
@@ -323,12 +379,9 @@ func (m Model) renderInfoBar() string {
 		info += fmt.Sprintf(" | dir: %s", m.runtime.Dir)
 	}
 
-	info += " | "
-	info += fmt.Sprintf("%d selected", len(m.selected))
+	info += fmt.Sprintf(" | %d selected", countSelected(m.selected))
 
-	return " " +
-		successStyle.Render("✓") +
-		infoBarStyle.Render(info)
+	return " " + successStyle.Render("✓") + infoBarStyle.Render(info)
 }
 
 func renderKeyHint(key, desc string) string {
@@ -339,12 +392,17 @@ func renderKeyHint(key, desc string) string {
 }
 
 func (m Model) renderHelpBar() string {
+	hideText := "hide unchanged"
+	if m.hideNoop {
+		hideText = "show unchanged"
+	}
+
 	hints := []string{
 		renderKeyHint("/", "filter"),
 		renderKeyHint("Space", "select"),
 		renderKeyHint("Enter", "detail"),
 		renderKeyHint("Tab", "action"),
-		renderKeyHint("H", "hide unchanged"),
+		renderKeyHint("H", hideText),
 		renderKeyHint("Ctrl+r", "refresh"),
 		renderKeyHint("q", "quit"),
 	}
