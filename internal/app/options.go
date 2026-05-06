@@ -14,6 +14,8 @@ type Options struct {
 	TerraformBinary  string
 	TofuBinary       string
 	TerragruntBinary string
+
+	AllowDestroy bool
 }
 
 func ParseOptions(args []string) (Options, error) {
@@ -27,6 +29,7 @@ func ParseOptions(args []string) (Options, error) {
 	fs.StringVar(&opts.TerraformBinary, "terraform-binary", "terraform", "terraform binary")
 	fs.StringVar(&opts.TofuBinary, "tofu-binary", "tofu", "tofu binary")
 	fs.StringVar(&opts.TerragruntBinary, "terragrunt-binary", "terragrunt", "terragrunt binary")
+	fs.BoolVar(&opts.AllowDestroy, "allow-destroy", false, "allow destroy actions")
 
 	if err := fs.Parse(args); err != nil {
 		return Options{}, err

@@ -21,6 +21,7 @@ type UIConfig struct {
 
 type SecurityConfig struct {
 	MaskSecrets    bool   `yaml:"mask_secrets"`
+	AllowApply     bool   `yaml:"allow_apply"`
 	AllowDestroy   bool   `yaml:"allow_destroy"`
 	PluginMode     string `yaml:"plugin_mode"`
 	ConfirmApply   bool   `yaml:"confirm_apply"`

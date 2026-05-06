@@ -27,6 +27,9 @@ func main() {
 		Dir:    rt.Options.Dir,
 		Engine: rt.Engine.Name(),
 		Binary: rt.Engine.Binary(),
+
+		AllowApply:   rt.Config.Security.AllowApply,
+		AllowDestroy: rt.Config.Security.AllowDestroy,
 	})
 
 	p := tea.NewProgram(model)

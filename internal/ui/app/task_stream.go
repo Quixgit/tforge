@@ -32,7 +32,7 @@ func startTaskCmd(rt RuntimeInfo, action string) tea.Cmd {
 			return taskStartedMsg{err: err}
 		}
 
-		if err := security.DefaultPolicy().Check(action); err != nil {
+		if err := security.NewPolicy(rt.AllowApply, rt.AllowDestroy).Check(action); err != nil {
 			return taskStartedMsg{err: err}
 		}
 
