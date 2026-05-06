@@ -9,8 +9,9 @@ type ResourceChange struct {
 	Address       string `json:"address"`
 	ModuleAddress string `json:"module_address"`
 
-	Type string `json:"type"`
-	Name string `json:"name"`
+	Type         string `json:"type"`
+	Name         string `json:"name"`
+	ProviderName string `json:"provider_name"`
 
 	Change Change `json:"change"`
 

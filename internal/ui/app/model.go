@@ -44,6 +44,7 @@ type Model struct {
 
 	workspaceMode    bool
 	analyticsMode    bool
+	providersMode    bool
 	workspaceCursor  int
 	workspaceErr     error
 	workspaces       []string
@@ -228,6 +229,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.taskScroll = max(0, len(m.taskLogs)-1)
 			}
 
+			return m, nil
+		}
+
+		if m.providersMode {
+			switch key {
+			case "esc", "p", "P", "q":
+				m.providersMode = false
+			}
 			return m, nil
 		}
 
@@ -506,6 +515,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "h", "H":
 			m.hideNoop = !m.hideNoop
 			m.resetCursor()
+
+		case "p", "P":
+			m.providersMode = true
 
 		case "a", "A":
 			m.analyticsMode = true
@@ -808,6 +820,7 @@ func (m Model) renderHelpBar() string {
 		renderKeyHint("Tab", "action"),
 		renderKeyHint("H", hideText),
 		renderKeyHint("Ctrl+r", "refresh"),
+		renderKeyHint("P", "providers"),
 		renderKeyHint("A", "analytics"),
 		renderKeyHint("W", "workspaces"),
 		renderKeyHint("Y", "history"),
@@ -831,6 +844,7 @@ func (m Model) renderHelpBar() string {
 			renderKeyHint("Space", "select"),
 			renderKeyHint("Enter", "detail"),
 			renderKeyHint("Tab", "action"),
+			renderKeyHint("P", "providers"),
 			renderKeyHint("A", "analytics"),
 			renderKeyHint("q", "quit"),
 		}
