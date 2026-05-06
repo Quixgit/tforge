@@ -41,6 +41,11 @@ type Model struct {
 	historyErr     error
 	historyEntries []history.Entry
 
+	workspaceMode   bool
+	workspaceCursor int
+	workspaceErr    error
+	workspaces      []string
+
 	selected map[string]bool
 
 	taskMode   bool
@@ -69,6 +74,30 @@ func (m Model) Init() tea.Cmd {
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case workspacesLoadedMsg:
+		m.workspaceErr = msg.err
+		m.workspaces = msg.workspaces
+		m.workspaceCursor = 0
+
+		if len(msg.workspaces) > 0 && m.currentWorkspace == "" {
+			m.currentWorkspace = msg.workspaces[0]
+		}
+
+		return m, nil
+
+	case workspaceSwitchedMsg:
+
+		if msg.err != nil {
+			m.workspaceErr = msg.err
+			return m, nil
+		}
+
+		m.currentWorkspace = msg.workspace
+		m.workspaceMode = false
+		m.loading = true
+
+		return m, scanCmd(m.runtime)
+
 	case historyLoadedMsg:
 		m.historyErr = msg.err
 		m.historyEntries = msg.entries
@@ -196,6 +225,62 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.taskScroll = max(0, len(m.taskLogs)-1)
 			}
 
+			return m, nil
+		}
+
+		if m.workspaceMode {
+			switch key {
+			case "esc", "w", "W":
+				m.workspaceMode = false
+			case "up", "k":
+				if m.workspaceCursor > 0 {
+					m.workspaceCursor--
+				}
+			case "down", "j":
+				if m.workspaceCursor < len(m.workspaces)-1 {
+					m.workspaceCursor++
+				}
+			case "enter":
+				if len(m.workspaces) > 0 &&
+					m.workspaceCursor < len(m.workspaces) {
+
+					return m, switchWorkspaceCmd(
+						m.runtime,
+						m.workspaces[m.workspaceCursor],
+					)
+				}
+
+			case "ctrl+r":
+				return m, loadWorkspacesCmd(m.runtime)
+			}
+			return m, nil
+		}
+
+		if m.workspaceMode {
+			switch key {
+			case "esc", "w", "W":
+				m.workspaceMode = false
+			case "up", "k":
+				if m.workspaceCursor > 0 {
+					m.workspaceCursor--
+				}
+			case "down", "j":
+				if m.workspaceCursor < len(m.workspaces)-1 {
+					m.workspaceCursor++
+				}
+			case "enter":
+				if len(m.workspaces) > 0 &&
+					m.workspaceCursor < len(m.workspaces) {
+
+					return m, switchWorkspaceCmd(
+						m.runtime,
+						m.workspaces[m.workspaceCursor],
+					)
+				}
+
+			case "ctrl+r":
+				return m, loadWorkspacesCmd(m.runtime)
+			}
 			return m, nil
 		}
 
@@ -410,6 +495,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.hideNoop = !m.hideNoop
 			m.cursor = 0
 
+		case "w", "W":
+			m.workspaceMode = true
+			return m, loadWorkspacesCmd(m.runtime)
+
 		case "y", "Y":
 			m.historyMode = true
 			m.historyDetail = false
@@ -479,6 +568,10 @@ func (m Model) View() tea.View {
 
 	if m.historyMode {
 		view = m.renderHistoryOverlay(view)
+	}
+
+	if m.workspaceMode {
+		view = m.renderWorkspaceOverlay(view)
 	}
 
 	return tea.NewView(view)
@@ -635,6 +728,10 @@ func (m Model) renderInfoBar() string {
 		info += fmt.Sprintf(" | dir: %s", m.runtime.Dir)
 	}
 
+	if m.currentWorkspace != "" {
+		info += fmt.Sprintf(" | ws: %s", m.currentWorkspace)
+	}
+
 	info += fmt.Sprintf(" | %d selected", countSelected(m.selected))
 
 	return " " + successStyle.Render("✓") + infoBarStyle.Render(info)
@@ -660,6 +757,8 @@ func (m Model) renderHelpBar() string {
 		renderKeyHint("Tab", "action"),
 		renderKeyHint("H", hideText),
 		renderKeyHint("Ctrl+r", "refresh"),
+		renderKeyHint("W", "workspaces"),
+		renderKeyHint("W", "workspaces"),
 		renderKeyHint("Y", "history"),
 		renderKeyHint("q", "quit"),
 	}
