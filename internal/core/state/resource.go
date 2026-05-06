@@ -43,5 +43,8 @@ type Resource struct {
 	Action  Action
 	Reason  string
 
+	Before map[string]any
+	After  map[string]any
+
 	Selected bool
 }
