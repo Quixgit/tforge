@@ -10,12 +10,16 @@ func Detect(dir string) string {
 		return "terragrunt"
 	}
 
+	if exists(filepath.Join(dir, ".tofu.lock.hcl")) {
+		return "tofu"
+	}
+
 	if exists(filepath.Join(dir, ".terraform.lock.hcl")) {
 		return "terraform"
 	}
 
-	if exists(filepath.Join(dir, ".tofu.lock.hcl")) {
-		return "tofu"
+	if hasFile(dir, "*.tf") {
+		return "terraform"
 	}
 
 	return "terraform"
@@ -24,4 +28,9 @@ func Detect(dir string) string {
 func exists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
+}
+
+func hasFile(dir, pattern string) bool {
+	matches, err := filepath.Glob(filepath.Join(dir, pattern))
+	return err == nil && len(matches) > 0
 }
