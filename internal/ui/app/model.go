@@ -67,6 +67,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.rows = msg.rows
 		return m, nil
 
+	case historySavedMsg:
+		if msg.err != nil {
+			m.taskLogs = append(m.taskLogs, "history save failed: "+msg.err.Error())
+		}
+		return m, nil
+
 	case taskFinishedMsg:
 
 		if msg.err != nil {
@@ -81,7 +87,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		m.taskDone = true
-		return m, nil
+		return m, saveHistoryCmd(m.runtime, m.taskName, m.taskLogs, true)
 
 	case taskStartedMsg:
 
@@ -90,7 +96,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.taskLogs = append(m.taskLogs, "ERROR:")
 			m.taskLogs = append(m.taskLogs, msg.err.Error())
 			m.taskDone = true
-			return m, nil
+			return m, saveHistoryCmd(m.runtime, m.taskName, m.taskLogs, false)
 		}
 
 		m.taskEvents = msg.events
@@ -122,11 +128,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.taskLogs = append(m.taskLogs, fmt.Sprintf("Finished with exit code %d", msg.event.ExitCode))
 			m.taskScroll = max(0, len(m.taskLogs)-1)
 			m.taskDone = true
-			return m, nil
+			return m, saveHistoryCmd(m.runtime, m.taskName, m.taskLogs, msg.event.ExitCode == 0)
 		case events.TypeError:
 			m.taskLogs = append(m.taskLogs, "ERROR: "+msg.event.Error)
 			m.taskDone = true
-			return m, nil
+			return m, saveHistoryCmd(m.runtime, m.taskName, m.taskLogs, false)
 		}
 
 		if len(m.taskLogs) > 200 {
