@@ -15,9 +15,9 @@ func (m Model) renderLegend() string {
 		dimStyle.Render("no-op"),
 	}
 
-	fullLine := " " + strings.Join(full, "  ")
-	if lipgloss.Width(fullLine) <= m.viewWidth {
-		return fullLine
+	line := " " + strings.Join(full, "  ")
+	if lipgloss.Width(line) <= m.viewWidth {
+		return line
 	}
 
 	short := []string{

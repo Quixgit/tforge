@@ -8,15 +8,18 @@ import (
 )
 
 func (m Model) renderTaskOverlay(background string) string {
-	title := "Running " + m.taskName
+	title := "● Running " + m.taskName
+	titleStyle := warningStyle
+
 	if m.taskDone {
-		title = "Finished " + m.taskName
+		title = "✔ Finished " + m.taskName
+		titleStyle = successStyle
 	}
 
 	boxW := min(120, m.width-10)
 	boxH := min(34, m.height-6)
 
-	viewportH := max(1, boxH-7)
+	viewportH := max(1, boxH-8)
 
 	logs := m.taskLogs
 	if len(logs) == 0 {
@@ -32,22 +35,24 @@ func (m Model) renderTaskOverlay(background string) string {
 	}
 
 	end := min(len(logs), start+viewportH)
-
 	visible := logs[start:end]
 
 	for len(visible) < viewportH {
 		visible = append(visible, "")
 	}
 
+	progress := progressBar(end, len(logs), 28)
 	scrollInfo := fmt.Sprintf(" lines %d-%d/%d ", start+1, end, len(logs))
 
-	footer := "↑/↓ scroll | PgUp/PgDn | Home/End | Esc close"
-	if !m.taskDone {
-		footer = "Running... | ↑/↓ scroll | Esc hide"
+	footer := "Running... | ↑/↓ scroll | Esc hide"
+	if m.taskDone {
+		footer = "↑/↓ scroll | PgUp/PgDn | Home/End | Esc close"
 	}
 
-	content := infoBarStyle.Render(title) +
+	content := titleStyle.Render(title) +
 		dimStyle.Render(scrollInfo) +
+		"\n" +
+		colorBar(progress) +
 		"\n\n" +
 		strings.Join(visible, "\n") +
 		"\n" +
@@ -58,16 +63,30 @@ func (m Model) renderTaskOverlay(background string) string {
 		Height(boxH).
 		Render(content)
 
-	w := lipgloss.Width(box)
-	h := lipgloss.Height(box)
+	return centeredLayer(background, box, 3, m.width, m.height)
+}
 
-	x := max(0, (m.width-w)/2)
-	y := max(0, (m.height-h)/2)
+func progressBar(current, total, width int) string {
+	if total <= 0 {
+		total = 1
+	}
+	if current > total {
+		current = total
+	}
 
-	bg := lipgloss.NewLayer(background)
-	fg := lipgloss.NewLayer(box).X(x).Y(y).Z(1)
+	filled := width * current / total
+	if filled < 0 {
+		filled = 0
+	}
+	if filled > width {
+		filled = width
+	}
 
-	return lipgloss.NewCompositor(bg, fg).Render()
+	return strings.Repeat("█", filled) + strings.Repeat("░", width-filled)
+}
+
+func colorBar(v string) string {
+	return successStyle.Render(v)
 }
 
 func min(a, b int) int {
