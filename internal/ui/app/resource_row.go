@@ -12,22 +12,22 @@ func (m Model) renderResourceRow(row resources.Row, focused bool) string {
 		return ""
 	}
 
-	resource := row.Resource
+	r := row.Resource
 
 	check := "[ ]"
-	if m.selected[resource.Address] {
+	if m.selected[r.Address] {
 		check = "[x]"
 	}
 
-	prefix := " "
+	pointer := " "
 	if focused {
-		prefix = ">"
+		pointer = ">"
 	}
 
 	actionText := "no-op"
 	style := dimStyle
 
-	switch resource.Action {
+	switch r.Action {
 	case state.ActionCreate:
 		actionText = "+ create"
 		style = successStyle
@@ -42,16 +42,14 @@ func (m Model) renderResourceRow(row resources.Row, focused bool) string {
 		style = warningStyle
 	}
 
-	line := fmt.Sprintf(
-		"%s %s  %-12s %s",
-		prefix,
-		check,
-		actionText,
-		resource.Address,
-	)
+	line := fmt.Sprintf("%s %s  %-12s %s", pointer, check, actionText, r.Address)
 
 	if focused {
 		return cursorStyle.Render(line)
+	}
+
+	if m.selected[r.Address] {
+		return selectedStyle.Render(line)
 	}
 
 	return style.Render(line)

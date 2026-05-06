@@ -611,6 +611,8 @@ func (m Model) View() tea.View {
 func (m Model) renderListView() string {
 	var s strings.Builder
 
+	fmt.Fprintln(&s, m.renderHeaderLine())
+	fmt.Fprintln(&s)
 	fmt.Fprint(&s, m.renderFilterBox())
 	fmt.Fprintln(&s, m.renderResourcesBox())
 	fmt.Fprintln(&s, m.renderInfoBar())
@@ -771,33 +773,17 @@ func (m Model) renderInfoBar() string {
 
 	full := fmt.Sprintf("  Engine: %s", engineName)
 
-	if engineName == "terragrunt" {
-		full += " | mode: run-all"
-	}
-
-	if m.runtime.Dir != "" {
-		full += fmt.Sprintf(" | dir: %s", m.runtime.Dir)
-	}
-
 	if m.currentWorkspace != "" {
 		full += fmt.Sprintf(" | ws: %s", m.currentWorkspace)
 	}
 
+	if m.runtime.Dir != "" && m.viewWidth > 110 {
+		full += fmt.Sprintf(" | dir: %s", m.runtime.Dir)
+	}
+
 	full += fmt.Sprintf(" | %d selected", selected)
 
-	if lipgloss.Width(full) <= m.viewWidth-3 {
-		return " " + successStyle.Render("✓") + infoBarStyle.Render(full)
-	}
-
-	short := fmt.Sprintf("  %s", engineName)
-
-	if m.currentWorkspace != "" {
-		short += fmt.Sprintf(" | ws:%s", m.currentWorkspace)
-	}
-
-	short += fmt.Sprintf(" | %d selected", selected)
-
-	return " " + successStyle.Render("✓") + infoBarStyle.Render(short)
+	return " " + successStyle.Render("✓") + infoBarStyle.Render(full)
 }
 
 func renderKeyHint(key, desc string) string {
@@ -827,10 +813,9 @@ func (m Model) renderHelpBar() string {
 		renderKeyHint("q", "quit"),
 	}
 
-	line1 := " " + strings.Join(hints, "  ")
-
-	if lipgloss.Width(line1) <= m.viewWidth {
-		return line1
+	line := " " + strings.Join(hints, "  ")
+	if lipgloss.Width(line) <= m.viewWidth {
+		return line
 	}
 
 	if m.viewWidth >= 90 {
@@ -838,23 +823,10 @@ func (m Model) renderHelpBar() string {
 			"\n " + strings.Join(hints[6:], "  ")
 	}
 
-	if m.viewWidth >= 60 {
-		short := []string{
-			renderKeyHint("/", "filter"),
-			renderKeyHint("Space", "select"),
-			renderKeyHint("Enter", "detail"),
-			renderKeyHint("Tab", "action"),
-			renderKeyHint("P", "providers"),
-			renderKeyHint("A", "analytics"),
-			renderKeyHint("q", "quit"),
-		}
-		return " " + strings.Join(short[:3], "  ") +
-			"\n " + strings.Join(short[3:], "  ")
-	}
-
 	short := []string{
 		renderKeyHint("/", "filter"),
-		renderKeyHint("Tab", "actions"),
+		renderKeyHint("Space", "select"),
+		renderKeyHint("Tab", "action"),
 		renderKeyHint("q", "quit"),
 	}
 
