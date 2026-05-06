@@ -8,37 +8,34 @@ import (
 )
 
 func (m Model) renderDetailOverlay(background string) string {
-	row := m.currentRow()
+	lines := m.detailLines()
 
-	var content string
-	if row == nil || row.Resource == nil {
-		content = "No resource selected"
-	} else {
-		r := row.Resource
+	boxW := min(110, m.width-10)
+	boxH := min(32, m.height-6)
 
-		lines := []string{
-			infoBarStyle.Render("Resource Detail"),
-			"",
-			fmt.Sprintf("Address: %s", r.Address),
-			fmt.Sprintf("Action:  %s", styleForAction(r.Action).Render(string(r.Action))),
-			fmt.Sprintf("Symbol:  %s", styleForAction(r.Action).Render(r.Action.Symbol())),
-			fmt.Sprintf("Module:  %s", emptyDash(r.Module)),
-			fmt.Sprintf("Type:    %s", emptyDash(r.Type)),
-			fmt.Sprintf("Name:    %s", emptyDash(r.Name)),
-			fmt.Sprintf("Reason:  %s", emptyDash(r.Reason)),
-			"",
-			infoBarStyle.Render("Changes"),
-			renderDiffPreview(r.Before, r.After),
-			"",
-			dimStyle.Render("Esc close"),
-		}
+	viewportH := max(1, boxH-4)
 
-		content = strings.Join(lines, "\n")
+	if m.detailScroll > max(0, len(lines)-1) {
+		m.detailScroll = max(0, len(lines)-1)
 	}
 
+	start := m.detailScroll
+	end := min(len(lines), start+viewportH)
+
+	visible := lines[start:end]
+	for len(visible) < viewportH {
+		visible = append(visible, "")
+	}
+
+	scrollInfo := fmt.Sprintf(" lines %d-%d/%d ", start+1, end, len(lines))
+
+	content := strings.Join(visible, "\n") +
+		"\n" +
+		dimStyle.Render(scrollInfo+"↑/↓ scroll | PgUp/PgDn | Home | Esc close")
+
 	box := focusedBorderStyle.
-		Width(min(90, m.width-10)).
-		Height(min(22, m.height-6)).
+		Width(boxW).
+		Height(boxH).
 		Render(content)
 
 	w := lipgloss.Width(box)
@@ -51,6 +48,39 @@ func (m Model) renderDetailOverlay(background string) string {
 	fg := lipgloss.NewLayer(box).X(x).Y(y).Z(1)
 
 	return lipgloss.NewCompositor(bg, fg).Render()
+}
+
+func (m Model) detailLines() []string {
+	row := m.currentRow()
+
+	if row == nil || row.Resource == nil {
+		return []string{"No resource selected"}
+	}
+
+	r := row.Resource
+
+	lines := []string{
+		infoBarStyle.Render("Resource Detail"),
+		"",
+		fmt.Sprintf("Address: %s", r.Address),
+		fmt.Sprintf("Action:  %s", styleForAction(r.Action).Render(string(r.Action))),
+		fmt.Sprintf("Symbol:  %s", styleForAction(r.Action).Render(r.Action.Symbol())),
+		fmt.Sprintf("Module:  %s", emptyDash(r.Module)),
+		fmt.Sprintf("Type:    %s", emptyDash(r.Type)),
+		fmt.Sprintf("Name:    %s", emptyDash(r.Name)),
+		fmt.Sprintf("Reason:  %s", emptyDash(r.Reason)),
+		"",
+		infoBarStyle.Render("Changes"),
+	}
+
+	diff := renderDiffPreview(r.Before, r.After)
+	if diff != "" {
+		lines = append(lines, strings.Split(diff, "\n")...)
+	}
+
+	lines = append(lines, "", dimStyle.Render("Esc close"))
+
+	return lines
 }
 
 func emptyDash(v string) string {
