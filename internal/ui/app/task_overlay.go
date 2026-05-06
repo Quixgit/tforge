@@ -7,22 +7,35 @@ import (
 )
 
 func (m Model) renderTaskOverlay(background string) string {
-
 	title := "Running " + m.taskName
+	if m.taskDone {
+		title = "Finished " + m.taskName
+	}
 
-	content := strings.Join(m.taskLogs, "\n")
+	logs := m.taskLogs
+	maxLines := max(1, min(24, m.height-12))
+	if len(logs) > maxLines {
+		logs = logs[len(logs)-maxLines:]
+	}
 
+	content := strings.Join(logs, "\n")
 	if content == "" {
 		content = "Starting..."
 	}
 
+	footer := "\n\nEsc close"
+	if !m.taskDone {
+		footer = "\n\nRunning... | Esc hide"
+	}
+
 	box := focusedBorderStyle.
 		Width(min(120, m.width-10)).
-		Height(min(30, m.height-6)).
+		Height(min(32, m.height-6)).
 		Render(
 			infoBarStyle.Render(title) +
 				"\n\n" +
-				content,
+				content +
+				dimStyle.Render(footer),
 		)
 
 	boxW := lipgloss.Width(box)
@@ -41,6 +54,5 @@ func min(a, b int) int {
 	if a < b {
 		return a
 	}
-
 	return b
 }
