@@ -7,6 +7,7 @@ import (
 
 	appcore "github.com/quix/tforge/internal/app"
 	"github.com/quix/tforge/internal/core/events"
+	"github.com/quix/tforge/internal/security"
 )
 
 type taskStartedMsg struct {
@@ -28,6 +29,10 @@ func startTaskCmd(rt RuntimeInfo, action string) tea.Cmd {
 
 		runtime, err := appcore.NewRuntime(opts)
 		if err != nil {
+			return taskStartedMsg{err: err}
+		}
+
+		if err := security.DefaultPolicy().Check(action); err != nil {
 			return taskStartedMsg{err: err}
 		}
 
