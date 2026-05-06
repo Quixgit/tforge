@@ -14,6 +14,8 @@ type Model struct {
 	viewWidth  int
 	viewHeight int
 	cursor     int
+
+	runtime RuntimeInfo
 }
 
 func New() Model {
@@ -186,8 +188,18 @@ func (m Model) moduleLine(
 }
 
 func (m Model) renderInfoBar() string {
-	info := fmt.Sprintf("  Scan Complete (%d resources scanned)", 13)
-	info += " | 4 selected | 1 warnings"
+	engineName := m.runtime.Engine
+	if engineName == "" {
+		engineName = "mock"
+	}
+
+	info := fmt.Sprintf("  Engine: %s", engineName)
+
+	if m.runtime.Dir != "" {
+		info += fmt.Sprintf(" | dir: %s", m.runtime.Dir)
+	}
+
+	info += " | mock scan complete | 4 selected | 1 warnings"
 
 	return " " +
 		successStyle.Render("✓") +
