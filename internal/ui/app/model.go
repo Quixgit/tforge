@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
+	"github.com/quix/tforge/internal/core/events"
 	"github.com/quix/tforge/internal/core/state"
 	resources "github.com/quix/tforge/internal/modules/resources"
 )
@@ -27,9 +28,11 @@ type Model struct {
 
 	selected map[string]bool
 
-	taskMode bool
-	taskLogs []string
-	taskName string
+	taskMode   bool
+	taskLogs   []string
+	taskName   string
+	taskDone   bool
+	taskEvents <-chan events.Event
 
 	loading bool
 	err     error
@@ -67,7 +70,57 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.taskLogs = append(m.taskLogs, "Task completed successfully")
 		}
 
+		m.taskDone = true
 		return m, nil
+
+	case taskStartedMsg:
+
+		if msg.err != nil {
+			m.taskLogs = append(m.taskLogs, "")
+			m.taskLogs = append(m.taskLogs, "ERROR:")
+			m.taskLogs = append(m.taskLogs, msg.err.Error())
+			m.taskDone = true
+			return m, nil
+		}
+
+		m.taskEvents = msg.events
+		m.taskLogs = append(m.taskLogs, "Process started")
+		return m, waitTaskEventCmd(msg.events)
+
+	case taskEventMsg:
+
+		if !msg.ok {
+			m.taskLogs = append(m.taskLogs, "Stream closed")
+			m.taskDone = true
+			return m, nil
+		}
+
+		switch msg.event.Type {
+		case events.TypeStarted:
+			m.taskLogs = append(m.taskLogs, "Started: "+msg.event.Command)
+		case events.TypeStdout:
+			if msg.event.Line != "" {
+				m.taskLogs = append(m.taskLogs, msg.event.Line)
+			}
+		case events.TypeStderr:
+			if msg.event.Line != "" {
+				m.taskLogs = append(m.taskLogs, "stderr: "+msg.event.Line)
+			}
+		case events.TypeFinished:
+			m.taskLogs = append(m.taskLogs, fmt.Sprintf("Finished with exit code %d", msg.event.ExitCode))
+			m.taskDone = true
+			return m, nil
+		case events.TypeError:
+			m.taskLogs = append(m.taskLogs, "ERROR: "+msg.event.Error)
+			m.taskDone = true
+			return m, nil
+		}
+
+		if len(m.taskLogs) > 200 {
+			m.taskLogs = m.taskLogs[len(m.taskLogs)-200:]
+		}
+
+		return m, waitTaskEventCmd(m.taskEvents)
 
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -116,7 +169,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					"Preparing execution...",
 				}
 
-				return m, runTaskCmd(m.runtime, action)
+				return m, startTaskCmd(m.runtime, action)
 
 			case "q", "ctrl+c":
 				return m, tea.Quit
