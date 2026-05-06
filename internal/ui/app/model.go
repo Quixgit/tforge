@@ -341,7 +341,8 @@ func (m Model) renderListView() string {
 	fmt.Fprint(&s, m.renderFilterBox())
 	fmt.Fprintln(&s, m.renderResourcesBox())
 	fmt.Fprintln(&s, m.renderInfoBar())
-	s.WriteString("\n" + m.renderHelpBar() + "\n")
+	s.WriteString("\n" + renderLegend() + "\n")
+	s.WriteString(m.renderHelpBar() + "\n")
 
 	return s.String()
 }
@@ -423,7 +424,13 @@ func (m Model) resourceRow(idx int, row resources.Row) string {
 		line = selectedStyle.Render(line)
 	}
 
-	line = styleForAction(r.Action).Render(line)
+	actionStyle := styleForAction(r.Action)
+
+	if idx == m.cursor {
+		line = cursorStyle.Render(line)
+	} else {
+		line = actionStyle.Render(line)
+	}
 
 	return prefix + line
 }
