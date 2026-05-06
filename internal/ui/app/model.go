@@ -19,6 +19,7 @@ type Model struct {
 	viewWidth  int
 	viewHeight int
 	cursor     int
+	offset     int
 
 	filtering bool
 	filter    string
@@ -42,6 +43,7 @@ type Model struct {
 	historyEntries []history.Entry
 
 	workspaceMode    bool
+	analyticsMode    bool
 	workspaceCursor  int
 	workspaceErr     error
 	workspaces       []string
@@ -457,6 +459,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if len(key) == 1 {
 					m.filter += key
 					m.cursor = 0
+					m.offset = 0
 				}
 			}
 			return m, nil
@@ -499,10 +502,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.filtering = true
 			m.filter = ""
 			m.cursor = 0
+			m.offset = 0
 
 		case "h", "H":
 			m.hideNoop = !m.hideNoop
 			m.cursor = 0
+			m.offset = 0
 
 		case "a", "A":
 			m.analyticsMode = true
@@ -599,7 +604,7 @@ func (m Model) renderListView() string {
 	fmt.Fprint(&s, m.renderFilterBox())
 	fmt.Fprintln(&s, m.renderResourcesBox())
 	fmt.Fprintln(&s, m.renderInfoBar())
-	s.WriteString("\n" + renderLegend() + "\n")
+	s.WriteString("\n" + m.renderLegend() + "\n")
 	s.WriteString(m.renderHelpBar() + "\n")
 
 	return s.String()
@@ -623,26 +628,40 @@ func (m Model) renderResourcesBox() string {
 		rows = resources.DemoRows()
 	}
 
-	visible := max(1, m.viewHeight-7)
+	visible := m.visibleResourceRows()
+
+	start := m.offset
+	if start > len(rows) {
+		start = 0
+	}
+
+	end := min(len(rows), start+visible)
 
 	var b strings.Builder
 
-	for i := 0; i < visible; i++ {
-		if i < len(rows) {
-			switch rows[i].Kind {
-			case resources.RowModule:
-				fmt.Fprintln(&b, m.moduleRow(i, rows[i]))
-			case resources.RowResource:
-				fmt.Fprintln(&b, m.resourceRow(i, rows[i]))
-			}
-		} else {
-			fmt.Fprintln(&b)
+	for i := start; i < end; i++ {
+		switch rows[i].Kind {
+		case resources.RowModule:
+			fmt.Fprintln(&b, m.moduleRow(i, rows[i]))
+		case resources.RowResource:
+			fmt.Fprintln(&b, m.resourceRow(i, rows[i]))
 		}
+	}
+
+	rendered := end - start
+	for rendered < visible {
+		fmt.Fprintln(&b)
+		rendered++
+	}
+
+	header := ""
+	if len(rows) > visible {
+		header = dimStyle.Render(fmt.Sprintf(" showing %d-%d/%d", start+1, end, len(rows))) + "\n"
 	}
 
 	return resourceBorderStyle.
 		Width(m.viewWidth).
-		Render(strings.TrimSuffix(b.String(), "\n"))
+		Render(strings.TrimSuffix(header+b.String(), "\n"))
 }
 
 func (m Model) resourceRow(idx int, row resources.Row) string {
@@ -738,19 +757,33 @@ func (m Model) renderInfoBar() string {
 		engineName = "mock"
 	}
 
-	info := fmt.Sprintf("  Engine: %s", engineName)
+	selected := countSelected(m.selected)
+
+	full := fmt.Sprintf("  Engine: %s", engineName)
 
 	if m.runtime.Dir != "" {
-		info += fmt.Sprintf(" | dir: %s", m.runtime.Dir)
+		full += fmt.Sprintf(" | dir: %s", m.runtime.Dir)
 	}
 
 	if m.currentWorkspace != "" {
-		info += fmt.Sprintf(" | ws: %s", m.currentWorkspace)
+		full += fmt.Sprintf(" | ws: %s", m.currentWorkspace)
 	}
 
-	info += fmt.Sprintf(" | %d selected", countSelected(m.selected))
+	full += fmt.Sprintf(" | %d selected", selected)
 
-	return " " + successStyle.Render("✓") + infoBarStyle.Render(info)
+	if lipgloss.Width(full) <= m.viewWidth-3 {
+		return " " + successStyle.Render("✓") + infoBarStyle.Render(full)
+	}
+
+	short := fmt.Sprintf("  %s", engineName)
+
+	if m.currentWorkspace != "" {
+		short += fmt.Sprintf(" | ws:%s", m.currentWorkspace)
+	}
+
+	short += fmt.Sprintf(" | %d selected", selected)
+
+	return " " + successStyle.Render("✓") + infoBarStyle.Render(short)
 }
 
 func renderKeyHint(key, desc string) string {
@@ -775,22 +808,41 @@ func (m Model) renderHelpBar() string {
 		renderKeyHint("Ctrl+r", "refresh"),
 		renderKeyHint("A", "analytics"),
 		renderKeyHint("W", "workspaces"),
-		renderKeyHint("A", "analytics"),
-		renderKeyHint("W", "workspaces"),
 		renderKeyHint("Y", "history"),
 		renderKeyHint("q", "quit"),
 	}
 
-	if m.viewWidth >= 90 {
-		return " " + strings.Join(hints, "  ")
+	line1 := " " + strings.Join(hints, "  ")
+
+	if lipgloss.Width(line1) <= m.viewWidth {
+		return line1
 	}
 
-	mid := (len(hints) + 1) / 2
+	if m.viewWidth >= 90 {
+		return " " + strings.Join(hints[:6], "  ") +
+			"\n " + strings.Join(hints[6:], "  ")
+	}
 
-	return " " +
-		strings.Join(hints[:mid], "  ") +
-		"\n " +
-		strings.Join(hints[mid:], "  ")
+	if m.viewWidth >= 60 {
+		short := []string{
+			renderKeyHint("/", "filter"),
+			renderKeyHint("Space", "select"),
+			renderKeyHint("Enter", "detail"),
+			renderKeyHint("Tab", "action"),
+			renderKeyHint("A", "analytics"),
+			renderKeyHint("q", "quit"),
+		}
+		return " " + strings.Join(short[:3], "  ") +
+			"\n " + strings.Join(short[3:], "  ")
+	}
+
+	short := []string{
+		renderKeyHint("/", "filter"),
+		renderKeyHint("Tab", "actions"),
+		renderKeyHint("q", "quit"),
+	}
+
+	return " " + strings.Join(short, "  ")
 }
 
 func max(a, b int) int {
