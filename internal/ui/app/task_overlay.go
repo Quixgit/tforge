@@ -42,6 +42,14 @@ func (m Model) renderTaskOverlay(background string) string {
 	progress := progressBar(end, len(logs), 28)
 	scrollInfo := fmt.Sprintf(" lines %d-%d/%d ", start+1, end, len(logs))
 
+	recovery := ""
+	if m.taskStalePlan {
+		recovery = "\n\n" +
+			warningStyle.Render("Cached plan became stale.") +
+			"\n" +
+			dimStyle.Render("Press Ctrl+r to refresh the plan and retry apply.")
+	}
+
 	footer := "Running... | ↑/↓ scroll | Esc hide"
 	if m.taskDone {
 		footer = "↑/↓ scroll | PgUp/PgDn | Home/End | Esc close"
@@ -53,6 +61,7 @@ func (m Model) renderTaskOverlay(background string) string {
 		colorBar(progress) +
 		"\n\n" +
 		strings.Join(visible, "\n") +
+		recovery +
 		"\n" +
 		dimStyle.Render(footer)
 

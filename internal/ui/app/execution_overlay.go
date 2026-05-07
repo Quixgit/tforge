@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/quix/tforge/internal/execution"
+	"github.com/quix/tforge/internal/execution/graph"
 )
 
 func (m Model) renderExecutionOverlay(background string) string {
@@ -20,8 +21,33 @@ func (m Model) renderExecutionOverlay(background string) string {
 		return states[i].Address < states[j].Address
 	})
 
+	completed := 0
+	running := 0
+	failed := 0
+
+	for _, r := range states {
+		switch r.Status {
+		case execution.StatusComplete:
+			completed++
+
+		case execution.StatusRunning:
+			running++
+
+		case execution.StatusFailed:
+			failed++
+		}
+	}
+
+	summary := fmt.Sprintf(
+		"running %d  complete %d  failed %d",
+		running,
+		completed,
+		failed,
+	)
+
 	lines := []string{
 		infoBarStyle.Render("Live Execution"),
+		dimStyle.Render(summary),
 		"",
 		dimStyle.Render("Resource                                 Status        Duration"),
 		dimStyle.Render("────────────────────────────────────────────────────────────────"),
@@ -30,6 +56,18 @@ func (m Model) renderExecutionOverlay(background string) string {
 	if len(states) == 0 {
 		lines = append(lines, dimStyle.Render("Waiting for terraform events..."))
 	}
+
+	nodes := graph.Build(states)
+
+	graphText := graph.Render(nodes)
+
+	if strings.TrimSpace(graphText) != "" {
+		lines = append(lines, graphText)
+		lines = append(lines, "")
+	}
+
+	lines = append(lines, dimStyle.Render("Detailed Runtime States"))
+	lines = append(lines, dimStyle.Render("────────────────────────────────────────────────────────────────"))
 
 	for _, r := range states {
 		icon := "◌"

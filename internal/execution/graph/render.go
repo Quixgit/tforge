@@ -1,6 +1,8 @@
 package graph
 
-import "strings"
+import (
+	"strings"
+)
 
 func Render(nodes []*Node) string {
 	var lines []string
@@ -15,7 +17,11 @@ func Render(nodes []*Node) string {
 				prefix = "└─ "
 			}
 
-			lines = append(lines, prefix+statusIcon(c.Status)+" "+c.Label)
+			lines = append(lines,
+				prefix+
+					statusIcon(c.Status)+
+					" "+
+					c.Label)
 		}
 
 		lines = append(lines, "")
@@ -26,6 +32,7 @@ func Render(nodes []*Node) string {
 
 func statusIcon(s string) string {
 	switch s {
+
 	case "running":
 		return "●"
 
