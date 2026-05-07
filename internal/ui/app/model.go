@@ -47,6 +47,7 @@ type Model struct {
 	analyticsMode    bool
 	providersMode    bool
 	executionMode    bool
+	riskMode         bool
 	workspaceCursor  int
 	workspaceErr     error
 	workspaces       []string
@@ -235,6 +236,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		key := msg.String()
+
+		if m.riskMode {
+			switch key {
+			case "esc", "r", "R", "q":
+				m.riskMode = false
+			}
+			return m, nil
+		}
 
 		if m.executionMode {
 			switch key {
@@ -519,6 +528,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "h", "H":
 			m.hideNoop = !m.hideNoop
 			m.resetCursor()
+		case "r", "R":
+			m.riskMode = true
+
 		case "e", "E":
 			m.executionMode = true
 		case "p", "P":
@@ -618,6 +630,10 @@ func (m Model) View() tea.View {
 
 	if m.executionMode {
 		view = m.renderExecutionOverlay(view)
+	}
+
+	if m.riskMode {
+		view = m.renderRiskOverlay(view)
 	}
 
 	if m.providersMode {
@@ -841,6 +857,7 @@ func (m Model) renderHelpBar() string {
 		renderKeyHint("Tab", "action"),
 		renderKeyHint("H", hideText),
 		renderKeyHint("Ctrl+r", "refresh"),
+		renderKeyHint("R", "risk"),
 		renderKeyHint("E", "execution"),
 		renderKeyHint("P", "providers"),
 		renderKeyHint("A", "analytics"),
