@@ -9,6 +9,7 @@ import (
 
 	"github.com/quix/tforge/internal/core/events"
 	"github.com/quix/tforge/internal/core/state"
+	"github.com/quix/tforge/internal/execution"
 	"github.com/quix/tforge/internal/history"
 	resources "github.com/quix/tforge/internal/modules/resources"
 )
@@ -45,6 +46,7 @@ type Model struct {
 	workspaceMode    bool
 	analyticsMode    bool
 	providersMode    bool
+	executionMode    bool
 	workspaceCursor  int
 	workspaceErr     error
 	workspaces       []string
@@ -59,6 +61,8 @@ type Model struct {
 	taskScroll int
 	taskEvents <-chan events.Event
 
+	execTracker *execution.Tracker
+
 	loading bool
 	err     error
 	rows    []resources.Row
@@ -68,7 +72,8 @@ type Model struct {
 
 func New() Model {
 	return Model{
-		selected: map[string]bool{},
+		selected:    map[string]bool{},
+		execTracker: execution.NewTracker(),
 	}
 }
 
@@ -227,6 +232,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			case "end":
 				m.taskScroll = max(0, len(m.taskLogs)-1)
+			}
+
+			return m, nil
+		}
+
+		if m.executionMode {
+			switch key {
+			case "esc", "e", "E", "q":
+				m.executionMode = false
 			}
 
 			return m, nil
@@ -515,6 +529,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "h", "H":
 			m.hideNoop = !m.hideNoop
 			m.resetCursor()
+
+		case "e", "E":
+			m.executionMode = true
 
 		case "p", "P":
 			m.providersMode = true
@@ -806,6 +823,7 @@ func (m Model) renderHelpBar() string {
 		renderKeyHint("Tab", "action"),
 		renderKeyHint("H", hideText),
 		renderKeyHint("Ctrl+r", "refresh"),
+		renderKeyHint("E", "execution"),
 		renderKeyHint("P", "providers"),
 		renderKeyHint("A", "analytics"),
 		renderKeyHint("W", "workspaces"),
