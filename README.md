@@ -1,90 +1,106 @@
 # TFORGE
 
-Next-generation infrastructure execution console for Terraform, Terragrunt and OpenTofu.
+<p align="center">
+  <strong>Next-generation infrastructure execution console</strong>
+</p>
 
-TFORGE provides:
-- realtime infrastructure execution tracking
-- resource lifecycle visualization
-- live execution overlays
-- safe apply workflows
-- multi-engine support
+<p align="center">
+  Terraform • Terragrunt • OpenTofu
+</p>
+
+<p align="center">
+  Realtime execution • Infrastructure observability • Safe apply workflows
+</p>
+
+---
+
+TFORGE is a modern terminal UI and execution layer for Infrastructure as Code.
+
+It transforms Terraform, Terragrunt and OpenTofu workflows into a realtime operational console with:
+- live execution tracking
+- execution overlays
+- resource lifecycle visibility
 - execution analytics
+- safe apply flows
 - workspace management
-- history persistence
+- execution history
 - infrastructure observability
 
-## Features
+---
 
-### Infrastructure Engines
+# Vision
+
+Traditional Terraform UX is:
+- noisy
+- opaque
+- difficult to observe
+- hard to reason about during execution
+
+TFORGE aims to become:
+
+> the realtime operational cockpit for Infrastructure as Code
+
+---
+
+# Features
+
+## Infrastructure Engines
 
 - Terraform
 - Terragrunt
 - OpenTofu
 
-### Execution Intelligence
+## Execution Intelligence
 
 - Live execution tracker
-- Realtime resource status
+- Realtime resource lifecycle tracking
 - Execution overlays
-- Progress tracking
-- Cached plans
-- Apply confirmation flow
-- History persistence
+- Progress visualization
+- Cached execution plans
+- Apply confirmation flows
+- Resource execution analytics
+- Execution history persistence
 
-### UI
+## UI
 
-- Interactive TUI
-- Resource tree
-- Detail overlays
-- Analytics overlays
+- Interactive terminal UI
+- Resource tree view
+- Resource detail overlays
+- Execution overlays
 - Workspace switcher
+- Analytics dashboard
 - Keyboard-driven workflow
 
-## Installation
+## Safety
 
-### Requirements
+- Cached plan apply
+- Safe execution layer
+- Structured command execution
+- No shell interpolation
+- History isolation
+- Local cache permissions
+
+---
+
+# Screenshots
+
+Coming soon.
+
+---
+
+# Installation
+
+## Requirements
 
 - Go 1.26+
 - Terraform / Terragrunt / OpenTofu
 
-### Build
+---
 
-    git clone git@github.com:Quixgit/tforge.git
-    cd tforge
-    go build -o tforge ./cmd/tforge
+## Build from source
 
-## Usage
+```bash
+git clone git@github.com:Quixgit/tforge.git
+cd tforge
 
-### Terraform
-
-    ./tforge --engine terraform --dir .
-
-### Auto detect
-
-    ./tforge --engine auto --dir .
-
-## Keyboard Shortcuts
-
-- j/k → navigate
-- Space → select
-- Enter → details
-- Tab → action menu
-- Ctrl+r → refresh
-- E → execution
-- P → providers
-- A → analytics
-- W → workspaces
-- Y → history
-- q → quit
-
-## Status
-
-Current release stream:
-
-    v0.x.x-alpha.x
-
-TFORGE is currently under active development.
-
-## License
-
-MIT
+go build -o tforge ./cmd/tforge
