@@ -6,6 +6,7 @@ type Status string
 
 const (
 	StatusQueued   Status = "queued"
+	StatusPlanned  Status = "planned"
 	StatusRunning  Status = "running"
 	StatusComplete Status = "complete"
 	StatusFailed   Status = "failed"

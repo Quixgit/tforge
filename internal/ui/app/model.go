@@ -119,6 +119,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loading = false
 		m.err = msg.err
 		m.rows = msg.rows
+
+		if m.execTracker != nil {
+			m.execTracker.Reset()
+			m.execTracker.SeedRows(msg.rows)
+		}
+
 		return m, nil
 
 	case historySavedMsg:

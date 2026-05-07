@@ -42,7 +42,10 @@ func statusIcon(s string) string {
 	case "failed":
 		return "✖"
 
-	default:
+	case "planned":
 		return "◌"
+
+	default:
+		return "·"
 	}
 }
