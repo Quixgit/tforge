@@ -96,7 +96,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case workspaceSwitchedMsg:
-
 		if msg.err != nil {
 			m.workspaceErr = msg.err
 			return m, nil
@@ -115,6 +114,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.historyScroll = 0
 		return m, nil
 
+	case historySavedMsg:
+		if msg.err != nil {
+			m.taskLogs = append(m.taskLogs, "history save failed: "+msg.err.Error())
+		}
+		return m, nil
+
 	case scanFinishedMsg:
 		m.loading = false
 		m.err = msg.err
@@ -127,30 +132,24 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		return m, nil
 
-	case historySavedMsg:
-		if msg.err != nil {
-			m.taskLogs = append(m.taskLogs, "history save failed: "+msg.err.Error())
-		}
-		return m, nil
-
 	case taskFinishedMsg:
-
 		if msg.err != nil {
 			m.taskLogs = append(m.taskLogs, "")
 			m.taskLogs = append(m.taskLogs, "ERROR:")
 			m.taskLogs = append(m.taskLogs, msg.err.Error())
 			m.taskLogs = append(m.taskLogs, "")
 			m.taskLogs = append(m.taskLogs, "Safety policy blocked this action.")
-		} else {
-			m.taskLogs = append(m.taskLogs, "")
-			m.taskLogs = append(m.taskLogs, "Task completed successfully")
+			m.taskDone = true
+			return m, saveHistoryCmd(m.runtime, m.taskName, m.taskLogs, false)
 		}
 
+		m.taskLogs = append(m.taskLogs, "")
+		m.taskLogs = append(m.taskLogs, "Task completed successfully")
 		m.taskDone = true
+
 		return m, saveHistoryCmd(m.runtime, m.taskName, m.taskLogs, true)
 
 	case taskStartedMsg:
-
 		if msg.err != nil {
 			m.taskLogs = append(m.taskLogs, "")
 			m.taskLogs = append(m.taskLogs, "ERROR:")
@@ -164,7 +163,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, waitTaskEventCmd(msg.events)
 
 	case taskEventMsg:
-
 		if !msg.ok {
 			m.taskLogs = append(m.taskLogs, "Stream closed")
 			m.taskDone = true
@@ -174,21 +172,40 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.event.Type {
 		case events.TypeStarted:
 			m.taskLogs = append(m.taskLogs, "Started: "+msg.event.Command)
+
 		case events.TypeStdout:
 			if msg.event.Line != "" {
 				m.taskLogs = append(m.taskLogs, msg.event.Line)
 				m.taskScroll = max(0, len(m.taskLogs)-1)
+
+				ev := execution.ParseLine(msg.event.Line)
+				m.execTracker.Handle(ev)
+
+				if execution.IsStalePlanError(msg.event.Line) {
+					m.taskStalePlan = true
+				}
 			}
+
 		case events.TypeStderr:
 			if msg.event.Line != "" {
-				m.taskLogs = append(m.taskLogs, "stderr: "+msg.event.Line)
+				line := "stderr: " + msg.event.Line
+				m.taskLogs = append(m.taskLogs, line)
 				m.taskScroll = max(0, len(m.taskLogs)-1)
+
+				ev := execution.ParseLine(msg.event.Line)
+				m.execTracker.Handle(ev)
+
+				if execution.IsStalePlanError(msg.event.Line) {
+					m.taskStalePlan = true
+				}
 			}
+
 		case events.TypeFinished:
 			m.taskLogs = append(m.taskLogs, fmt.Sprintf("Finished with exit code %d", msg.event.ExitCode))
 			m.taskScroll = max(0, len(m.taskLogs)-1)
 			m.taskDone = true
 			return m, saveHistoryCmd(m.runtime, m.taskName, m.taskLogs, msg.event.ExitCode == 0)
+
 		case events.TypeError:
 			m.taskLogs = append(m.taskLogs, "ERROR: "+msg.event.Error)
 			m.taskDone = true
@@ -211,45 +228,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		key := msg.String()
 
-		if m.taskMode {
-
-			switch key {
-
-			case "esc", "q":
-				m.taskMode = false
-
-			case "up", "k":
-				if m.taskScroll > 0 {
-					m.taskScroll--
-				}
-
-			case "down", "j":
-				if m.taskScroll < max(0, len(m.taskLogs)-1) {
-					m.taskScroll++
-				}
-
-			case "pgup":
-				m.taskScroll = max(0, m.taskScroll-10)
-
-			case "pgdown":
-				m.taskScroll = min(max(0, len(m.taskLogs)-1), m.taskScroll+10)
-
-			case "home":
-				m.taskScroll = 0
-
-			case "end":
-				m.taskScroll = max(0, len(m.taskLogs)-1)
-			}
-
-			return m, nil
-		}
-
 		if m.executionMode {
 			switch key {
 			case "esc", "e", "E", "q":
 				m.executionMode = false
 			}
-
 			return m, nil
 		}
 
@@ -282,43 +265,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.workspaceCursor++
 				}
 			case "enter":
-				if len(m.workspaces) > 0 &&
-					m.workspaceCursor < len(m.workspaces) {
-
-					return m, switchWorkspaceCmd(
-						m.runtime,
-						m.workspaces[m.workspaceCursor],
-					)
+				if len(m.workspaces) > 0 && m.workspaceCursor < len(m.workspaces) {
+					return m, switchWorkspaceCmd(m.runtime, m.workspaces[m.workspaceCursor])
 				}
-
-			case "ctrl+r":
-				return m, loadWorkspacesCmd(m.runtime)
-			}
-			return m, nil
-		}
-
-		if m.workspaceMode {
-			switch key {
-			case "esc", "w", "W":
-				m.workspaceMode = false
-			case "up", "k":
-				if m.workspaceCursor > 0 {
-					m.workspaceCursor--
-				}
-			case "down", "j":
-				if m.workspaceCursor < len(m.workspaces)-1 {
-					m.workspaceCursor++
-				}
-			case "enter":
-				if len(m.workspaces) > 0 &&
-					m.workspaceCursor < len(m.workspaces) {
-
-					return m, switchWorkspaceCmd(
-						m.runtime,
-						m.workspaces[m.workspaceCursor],
-					)
-				}
-
 			case "ctrl+r":
 				return m, loadWorkspacesCmd(m.runtime)
 			}
@@ -370,20 +319,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch key {
 			case "esc", "q":
 				m.confirmMode = false
-
 			case "left", "h":
 				m.confirmCursor = 0
-
 			case "right", "l":
 				m.confirmCursor = 1
-
 			case "tab":
 				if m.confirmCursor == 0 {
 					m.confirmCursor = 1
 				} else {
 					m.confirmCursor = 0
 				}
-
 			case "enter":
 				if m.confirmCursor == 0 {
 					m.confirmMode = false
@@ -394,14 +339,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.taskMode = true
 				m.taskName = m.confirmAction
 				m.taskDone = false
+				m.taskStalePlan = false
 				m.taskScroll = 0
-				m.taskLogs = []string{
-					"Preparing execution...",
+
+				if m.execTracker != nil {
+					m.execTracker.Reset()
+					m.execTracker.SeedRows(m.rows)
 				}
+
+				m.taskLogs = []string{"Preparing execution..."}
 
 				return m, startTaskCmd(m.runtime, m.confirmAction)
 			}
-
 			return m, nil
 		}
 
@@ -409,25 +358,56 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch key {
 			case "esc", "enter", "q":
 				m.detailMode = false
-
 			case "up", "k":
 				if m.detailScroll > 0 {
 					m.detailScroll--
 				}
-
 			case "down", "j":
 				m.detailScroll++
-
 			case "pgup":
 				m.detailScroll = max(0, m.detailScroll-10)
-
 			case "pgdown":
 				m.detailScroll += 10
-
 			case "home":
 				m.detailScroll = 0
 			}
+			return m, nil
+		}
 
+		if m.taskMode {
+			switch key {
+			case "esc", "q":
+				m.taskMode = false
+			case "up", "k":
+				if m.taskScroll > 0 {
+					m.taskScroll--
+				}
+			case "down", "j":
+				if m.taskScroll < max(0, len(m.taskLogs)-1) {
+					m.taskScroll++
+				}
+			case "pgup":
+				m.taskScroll = max(0, m.taskScroll-10)
+			case "pgdown":
+				m.taskScroll = min(max(0, len(m.taskLogs)-1), m.taskScroll+10)
+			case "home":
+				m.taskScroll = 0
+			case "end":
+				m.taskScroll = max(0, len(m.taskLogs)-1)
+			case "e", "E":
+				m.executionMode = true
+			case "p", "P":
+				m.providersMode = true
+			case "a", "A":
+				m.analyticsMode = true
+			case "w", "W":
+				m.workspaceMode = true
+				return m, loadWorkspacesCmd(m.runtime)
+			case "y", "Y":
+				m.historyMode = true
+				m.historyDetail = false
+				return m, loadHistoryCmd()
+			}
 			return m, nil
 		}
 
@@ -435,21 +415,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch key {
 			case "esc", "tab":
 				m.actionMode = false
-
 			case "up", "k":
 				if m.actionCursor > 0 {
 					m.actionCursor--
 				}
-
 			case "down", "j":
 				if m.actionCursor < len(actions)-1 {
 					m.actionCursor++
 				}
-
 			case "enter":
-
 				action := actions[m.actionCursor]
-
 				m.actionMode = false
 
 				if action == "apply" || action == "destroy" {
@@ -462,13 +437,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.taskMode = true
 				m.taskName = action
 				m.taskDone = false
+				m.taskStalePlan = false
 				m.taskScroll = 0
-				m.taskLogs = []string{
-					"Preparing execution...",
+
+				if m.execTracker != nil {
+					m.execTracker.Reset()
+					m.execTracker.SeedRows(m.rows)
 				}
 
-				return m, startTaskCmd(m.runtime, action)
+				m.taskLogs = []string{"Preparing execution..."}
 
+				return m, startTaskCmd(m.runtime, action)
 			case "q", "ctrl+c":
 				return m, tea.Quit
 			}
@@ -488,8 +467,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			default:
 				if len(key) == 1 {
 					m.filter += key
-					m.cursor = 0
-					m.offset = 0
+					m.resetCursor()
 				}
 			}
 			return m, nil
@@ -498,63 +476,45 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch key {
 		case "q", "ctrl+c":
 			return m, tea.Quit
-
 		case "up", "k":
-			if m.cursor > 0 {
-				m.cursor--
-			}
-
+			m.moveCursorUp()
 		case "down", "j":
-			rows := m.visibleRows()
-			if m.cursor < len(rows)-1 {
-				m.cursor++
-			}
-
+			m.moveCursorDown()
 		case " ", "space":
 			row := m.currentRow()
 			if row != nil && row.Resource != nil {
 				addr := row.Resource.Address
 				m.selected[addr] = !m.selected[addr]
 			}
-
 		case "enter":
 			row := m.currentRow()
 			if row != nil && row.Resource != nil {
 				m.detailMode = true
 				m.detailScroll = 0
 			}
-
 		case "tab":
 			m.actionMode = true
 			m.actionCursor = 0
-
 		case "/":
 			m.filtering = true
 			m.filter = ""
 			m.resetCursor()
-
 		case "h", "H":
 			m.hideNoop = !m.hideNoop
 			m.resetCursor()
-
 		case "e", "E":
 			m.executionMode = true
-
 		case "p", "P":
 			m.providersMode = true
-
 		case "a", "A":
 			m.analyticsMode = true
-
 		case "w", "W":
 			m.workspaceMode = true
 			return m, loadWorkspacesCmd(m.runtime)
-
 		case "y", "Y":
 			m.historyMode = true
 			m.historyDetail = false
 			return m, loadHistoryCmd()
-
 		case "ctrl+r":
 			m.loading = true
 			m.err = nil
@@ -601,10 +561,6 @@ func (m Model) View() tea.View {
 		lipgloss.WithWhitespaceChars(" "),
 	)
 
-	if m.detailMode {
-		view = m.renderDetailOverlay(view)
-	}
-
 	if m.actionMode {
 		view = m.renderActionModalOverlay(view)
 	}
@@ -613,20 +569,32 @@ func (m Model) View() tea.View {
 		view = m.renderConfirmOverlay(view)
 	}
 
+	if m.detailMode {
+		view = m.renderDetailOverlay(view)
+	}
+
 	if m.taskMode {
 		view = m.renderTaskOverlay(view)
 	}
 
-	if m.historyMode {
-		view = m.renderHistoryOverlay(view)
+	if m.executionMode {
+		view = m.renderExecutionOverlay(view)
+	}
+
+	if m.providersMode {
+		view = m.renderProvidersOverlay(view)
+	}
+
+	if m.analyticsMode {
+		view = m.renderAnalyticsOverlay(view)
 	}
 
 	if m.workspaceMode {
 		view = m.renderWorkspaceOverlay(view)
 	}
 
-	if m.analyticsMode {
-		view = m.renderAnalyticsOverlay(view)
+	if m.historyMode {
+		view = m.renderHistoryOverlay(view)
 	}
 
 	return tea.NewView(view)
