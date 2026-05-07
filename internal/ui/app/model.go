@@ -59,6 +59,8 @@ type Model struct {
 	taskName      string
 	taskDone      bool
 	taskStalePlan bool
+	retryAction   string
+	retryReady    bool
 	taskScroll    int
 	taskEvents    <-chan events.Event
 
@@ -125,6 +127,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.err = msg.err
 		m.rows = msg.rows
 
+		if m.retryAction != "" {
+			m.retryReady = true
+		}
+
 		if m.execTracker != nil {
 			m.execTracker.Reset()
 			m.execTracker.SeedRows(msg.rows)
@@ -183,6 +189,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 				if execution.IsStalePlanError(msg.event.Line) {
 					m.taskStalePlan = true
+					m.retryAction = m.taskName
 				}
 			}
 
@@ -197,6 +204,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 				if execution.IsStalePlanError(msg.event.Line) {
 					m.taskStalePlan = true
+					m.retryAction = m.taskName
 				}
 			}
 
@@ -516,6 +524,28 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "p", "P":
 			m.providersMode = true
 		case "a", "A":
+			if m.retryReady && m.retryAction != "" {
+				action := m.retryAction
+
+				m.retryReady = false
+				m.retryAction = ""
+
+				m.taskMode = true
+				m.taskName = action
+				m.taskDone = false
+				m.taskStalePlan = false
+				m.taskScroll = 0
+
+				if m.execTracker != nil {
+					m.execTracker.Reset()
+					m.execTracker.SeedRows(m.rows)
+				}
+
+				m.taskLogs = []string{"Retrying with refreshed cached plan..."}
+
+				return m, startTaskCmd(m.runtime, action)
+			}
+
 			m.analyticsMode = true
 		case "w", "W":
 			m.workspaceMode = true
@@ -783,6 +813,10 @@ func (m Model) renderInfoBar() string {
 	}
 
 	full += fmt.Sprintf(" | %d selected", selected)
+
+	if m.retryReady && m.retryAction != "" {
+		full += fmt.Sprintf(" | press A to retry %s", m.retryAction)
+	}
 
 	return " " + successStyle.Render("✓") + infoBarStyle.Render(full)
 }
