@@ -47,7 +47,7 @@ func (m Model) renderTaskOverlay(background string) string {
 		recovery = "\n\n" +
 			warningStyle.Render("Cached plan became stale.") +
 			"\n" +
-			dimStyle.Render("Press Ctrl+r to refresh the plan and retry apply.")
+			dimStyle.Render("Press R to refresh cached plan, then retry apply.")
 	}
 
 	footer := "Running... | ↑/↓ scroll | Esc hide"
