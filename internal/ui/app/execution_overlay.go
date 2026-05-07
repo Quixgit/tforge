@@ -74,6 +74,10 @@ func (m Model) renderExecutionOverlay(background string) string {
 		style := dimStyle
 
 		switch r.Status {
+		case execution.StatusPlanned:
+			icon = "◌"
+			style = dimStyle
+
 		case execution.StatusRunning:
 			icon = "●"
 			style = warningStyle

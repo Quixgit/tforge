@@ -12,9 +12,12 @@ func NewTracker() *Tracker {
 	}
 }
 
+func (t *Tracker) Reset() {
+	t.resources = map[string]*ResourceState{}
+}
+
 func (t *Tracker) Handle(event Event) {
 	switch event.Type {
-
 	case EventStart:
 		t.resources[event.Address] = &ResourceState{
 			Address:   event.Address,
