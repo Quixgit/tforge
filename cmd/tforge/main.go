@@ -24,6 +24,7 @@ func main() {
 	}
 
 	model := ui.NewWithRuntime(ui.RuntimeInfo{
+		Root:   rt.Options.Dir,
 		Dir:    rt.Options.Dir,
 		Engine: rt.Engine.Name(),
 		Binary: rt.Engine.Binary(),
