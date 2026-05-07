@@ -12,6 +12,7 @@ import (
 	"github.com/quix/tforge/internal/execution"
 	"github.com/quix/tforge/internal/history"
 	resources "github.com/quix/tforge/internal/modules/resources"
+	"github.com/quix/tforge/internal/security"
 )
 
 type Model struct {
@@ -182,7 +183,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case events.TypeStdout:
 			if msg.event.Line != "" {
-				m.taskLogs = append(m.taskLogs, msg.event.Line)
+				m.taskLogs = append(m.taskLogs, security.MaskLine(msg.event.Line))
 				m.taskScroll = max(0, len(m.taskLogs)-1)
 
 				ev := execution.ParseLine(msg.event.Line)
@@ -196,7 +197,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case events.TypeStderr:
 			if msg.event.Line != "" {
-				line := "stderr: " + msg.event.Line
+				line := "stderr: " + security.MaskLine(msg.event.Line)
 				m.taskLogs = append(m.taskLogs, line)
 				m.taskScroll = max(0, len(m.taskLogs)-1)
 
