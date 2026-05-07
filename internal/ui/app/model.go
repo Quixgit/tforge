@@ -90,7 +90,7 @@ func New() Model {
 
 func (m Model) Init() tea.Cmd {
 	if m.projectMode {
-		return loadProjectTargetsCmd(m.runtime.Root)
+		return autoProjectCmd(m.runtime.Root)
 	}
 
 	return scanCmd(m.runtime)
@@ -98,6 +98,30 @@ func (m Model) Init() tea.Cmd {
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case projectAutoMsg:
+		if msg.err != nil {
+			m.projectErr = msg.err
+			m.projectTargets = nil
+			m.projectMode = true
+			return m, nil
+		}
+
+		if len(msg.targets) == 1 {
+			target := msg.targets[0]
+
+			m.runtime.Dir = target.Dir
+			m.runtime.Engine = string(target.Kind)
+			m.projectMode = false
+			m.loading = true
+
+			return m, scanCmd(m.runtime)
+		}
+
+		m.projectTargets = msg.targets
+		m.projectCursor = 0
+		m.projectMode = true
+		return m, nil
+
 	case projectTargetsLoadedMsg:
 		m.projectErr = msg.err
 		m.projectTargets = msg.targets
