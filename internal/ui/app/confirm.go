@@ -36,8 +36,8 @@ func (m Model) renderConfirmOverlay(background string) string {
 
 	lines = append(lines, "")
 
-	cancel := button("Cancel", m.confirmCursor == 0)
-	confirm := button("Confirm", m.confirmCursor == 1)
+	cancel := confirmButton("Cancel", m.confirmCursor == 0, false)
+	confirm := confirmButton("Confirm", m.confirmCursor == 1, m.confirmAction == "destroy")
 
 	lines = append(lines, lipgloss.JoinHorizontal(lipgloss.Top, cancel, "  ", confirm))
 	lines = append(lines, "")
@@ -57,12 +57,4 @@ func (m Model) renderConfirmOverlay(background string) string {
 	fg := lipgloss.NewLayer(box).X(x).Y(y).Z(2)
 
 	return lipgloss.NewCompositor(bg, fg).Render()
-}
-
-func button(label string, focused bool) string {
-	if focused {
-		return cursorStyle.Render(" " + label + " ")
-	}
-
-	return borderStyle.Render(label)
 }
