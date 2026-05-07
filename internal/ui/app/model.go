@@ -407,6 +407,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.historyMode = true
 				m.historyDetail = false
 				return m, loadHistoryCmd()
+
+			case "r", "R":
+				if m.taskStalePlan {
+					m.taskMode = false
+					m.loading = true
+					m.err = nil
+					m.taskStalePlan = false
+					return m, scanCmd(m.runtime)
+				}
 			}
 			return m, nil
 		}
