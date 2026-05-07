@@ -12,6 +12,7 @@ import (
 	"github.com/quix/tforge/internal/execution"
 	"github.com/quix/tforge/internal/history"
 	resources "github.com/quix/tforge/internal/modules/resources"
+	"github.com/quix/tforge/internal/project"
 	"github.com/quix/tforge/internal/security"
 )
 
@@ -43,6 +44,11 @@ type Model struct {
 	historyScroll  int
 	historyErr     error
 	historyEntries []history.Entry
+
+	projectMode    bool
+	projectCursor  int
+	projectErr     error
+	projectTargets []project.Target
 
 	workspaceMode    bool
 	analyticsMode    bool
@@ -83,11 +89,21 @@ func New() Model {
 }
 
 func (m Model) Init() tea.Cmd {
+	if m.projectMode {
+		return loadProjectTargetsCmd(m.runtime.Root)
+	}
+
 	return scanCmd(m.runtime)
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case projectTargetsLoadedMsg:
+		m.projectErr = msg.err
+		m.projectTargets = msg.targets
+		m.projectCursor = 0
+		return m, nil
+
 	case workspacesLoadedMsg:
 		m.workspaceErr = msg.err
 		m.workspaces = msg.workspaces
@@ -237,6 +253,41 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		key := msg.String()
+
+		if m.projectMode {
+			switch key {
+			case "esc", "o", "O":
+				m.projectMode = false
+
+			case "up", "k":
+				if m.projectCursor > 0 {
+					m.projectCursor--
+				}
+
+			case "down", "j":
+				if m.projectCursor < len(m.projectTargets)-1 {
+					m.projectCursor++
+				}
+
+			case "enter":
+				if len(m.projectTargets) > 0 &&
+					m.projectCursor < len(m.projectTargets) {
+
+					target := m.projectTargets[m.projectCursor]
+
+					m.projectMode = false
+					m.loading = true
+					m.err = nil
+
+					m.runtime.Dir = target.Dir
+					m.runtime.Engine = string(target.Kind)
+
+					return m, scanCmd(m.runtime)
+				}
+			}
+
+			return m, nil
+		}
 
 		if m.riskMode {
 			switch key {
@@ -529,6 +580,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "h", "H":
 			m.hideNoop = !m.hideNoop
 			m.resetCursor()
+		case "o", "O":
+			m.projectMode = true
+			return m, loadProjectTargetsCmd(m.runtime.Root)
+
 		case "r", "R":
 			m.riskMode = true
 
@@ -635,6 +690,10 @@ func (m Model) View() tea.View {
 
 	if m.riskMode {
 		view = m.renderRiskOverlay(view)
+	}
+
+	if m.projectMode {
+		view = m.renderProjectOverlay(view)
 	}
 
 	if m.providersMode {
@@ -858,6 +917,7 @@ func (m Model) renderHelpBar() string {
 		renderKeyHint("Tab", "action"),
 		renderKeyHint("H", hideText),
 		renderKeyHint("Ctrl+r", "refresh"),
+		renderKeyHint("O", "projects"),
 		renderKeyHint("R", "risk"),
 		renderKeyHint("E", "execution"),
 		renderKeyHint("P", "providers"),

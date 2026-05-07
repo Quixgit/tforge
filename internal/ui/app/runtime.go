@@ -1,6 +1,9 @@
 package app
 
+import "github.com/quix/tforge/internal/project"
+
 type RuntimeInfo struct {
+	Root   string
 	Dir    string
 	Engine string
 	Binary string
@@ -12,9 +15,19 @@ type RuntimeInfo struct {
 func NewWithRuntime(info RuntimeInfo) Model {
 	m := New()
 
+	if info.Root == "" {
+		info.Root = info.Dir
+	}
+
 	m.runtime = info
-	m.loading = true
 	m.selected = map[string]bool{}
+
+	if project.HasConfig(info.Dir) {
+		m.loading = true
+	} else {
+		m.loading = false
+		m.projectMode = true
+	}
 
 	return m
 }
