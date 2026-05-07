@@ -54,12 +54,13 @@ type Model struct {
 
 	selected map[string]bool
 
-	taskMode   bool
-	taskLogs   []string
-	taskName   string
-	taskDone   bool
-	taskScroll int
-	taskEvents <-chan events.Event
+	taskMode      bool
+	taskLogs      []string
+	taskName      string
+	taskDone      bool
+	taskStalePlan bool
+	taskScroll    int
+	taskEvents    <-chan events.Event
 
 	execTracker *execution.Tracker
 
