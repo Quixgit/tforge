@@ -17,7 +17,7 @@ func (m Model) renderModuleInspector() string {
 
 	title := fmt.Sprintf("MODULE INSPECTOR • %s", m.moduleTarget.Name)
 
-	s.WriteString(infoBarStyle.Render(title))
+	s.WriteString(cursorStyle.Render(title))
 	s.WriteString("\n\n")
 	s.WriteString(dimStyle.Render("path: " + m.moduleTarget.Dir))
 	s.WriteString("\n\n")
@@ -55,7 +55,7 @@ func (m Model) renderModuleInspector() string {
 	lines = append(lines, "", dimStyle.Render("1/2/3/4 switch tabs | Esc back"))
 
 	s.WriteString(
-		focusedBorderStyle.Width(100).Render(strings.Join(lines, "\n")),
+		strings.Join(lines, "\n"),
 	)
 
 	return s.String()
