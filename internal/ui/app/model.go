@@ -768,10 +768,6 @@ func (m Model) View() tea.View {
 		view = m.renderRiskOverlay(view)
 	}
 
-	if m.projectMode {
-		view = m.renderProjectOverlay(view)
-	}
-
 	if m.providersMode {
 		view = m.renderProvidersOverlay(view)
 	}
