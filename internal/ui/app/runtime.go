@@ -21,6 +21,7 @@ func NewWithRuntime(info RuntimeInfo) Model {
 
 	m.runtime = info
 	m.selected = map[string]bool{}
+	m.selectedProjects = map[string]bool{}
 
 	if project.HasConfig(info.Dir) {
 		m.loading = true
