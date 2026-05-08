@@ -60,5 +60,9 @@ func (m Model) renderProjectOverlay(background string) string {
 		Height(min(30, m.height-6)).
 		Render(strings.Join(lines, "\n"))
 
+	if background == "" {
+		return box
+	}
+
 	return centeredLayer(background, box, 6, m.width, m.height)
 }
