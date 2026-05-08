@@ -54,7 +54,7 @@ func (m Model) renderProjectOverlay(background string) string {
 	}
 
 	lines = append(lines, "")
-	lines = append(lines, dimStyle.Render("Space toggle | Enter open stack | P plan selected stacks | A apply selected stacks | Esc close"))
+	lines = append(lines, dimStyle.Render("Space toggle | Enter inspect/open | / search | G graph | Esc close"))
 
 	box := focusedBorderStyle.
 		Width(min(120, m.width-10)).
