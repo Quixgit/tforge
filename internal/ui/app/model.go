@@ -375,6 +375,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			switch key {
+			case "g", "G":
+				m.graphMode = !m.graphMode
+				return m, nil
+
 			case "esc", "o", "O":
 				m.projectMode = false
 
@@ -803,12 +807,18 @@ func (m Model) View() tea.View {
 	}
 
 	if m.projectMode {
+		content := m.renderProjectView()
+
+		if m.graphMode {
+			content = m.renderGraphOverlay()
+		}
+
 		return tea.NewView(lipgloss.Place(
 			m.width,
 			m.height,
 			lipgloss.Center,
 			lipgloss.Top,
-			m.renderProjectView(),
+			content,
 		))
 	}
 
