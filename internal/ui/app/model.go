@@ -11,6 +11,7 @@ import (
 	"github.com/quix/tforge/internal/core/state"
 	"github.com/quix/tforge/internal/execution"
 	"github.com/quix/tforge/internal/history"
+	"github.com/quix/tforge/internal/moduleparser"
 	resources "github.com/quix/tforge/internal/modules/resources"
 	"github.com/quix/tforge/internal/project"
 	"github.com/quix/tforge/internal/security"
@@ -53,6 +54,8 @@ type Model struct {
 
 	moduleInspector bool
 	moduleTarget    *project.Target
+	parsedModule    moduleparser.Module
+	moduleTab       int
 
 	batchMode   bool
 	batchAction string
@@ -313,6 +316,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "esc", "q":
 				m.moduleInspector = false
 				m.moduleTarget = nil
+			case "1":
+				m.moduleTab = 0
+			case "2":
+				m.moduleTab = 1
+			case "3":
+				m.moduleTab = 2
+			case "4":
+				m.moduleTab = 3
 			}
 
 			return m, nil
@@ -365,8 +376,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					target := m.projectTargets[m.projectCursor]
 
 					if target.Role == project.RoleModule {
+						parsed, _ := moduleparser.Parse(target.Dir)
+
 						m.moduleInspector = true
 						m.moduleTarget = &target
+						m.parsedModule = parsed
+						m.moduleTab = 0
+
 						return m, nil
 					}
 
