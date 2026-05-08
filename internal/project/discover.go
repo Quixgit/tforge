@@ -37,6 +37,7 @@ func Discover(root string) ([]Target, error) {
 				Name: relName(root, dir),
 				Dir:  dir,
 				Kind: KindTerragrunt,
+				Role: Classify(dir, KindTerragrunt),
 			})
 			seen[dir] = true
 
@@ -45,6 +46,7 @@ func Discover(root string) ([]Target, error) {
 				Name: relName(root, dir),
 				Dir:  dir,
 				Kind: KindTofu,
+				Role: Classify(dir, KindTofu),
 			})
 			seen[dir] = true
 
@@ -54,6 +56,7 @@ func Discover(root string) ([]Target, error) {
 					Name: relName(root, dir),
 					Dir:  dir,
 					Kind: KindTerraform,
+					Role: Classify(dir, KindTerraform),
 				})
 				seen[dir] = true
 			}
