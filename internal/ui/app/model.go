@@ -51,6 +51,9 @@ type Model struct {
 	projectTargets   []project.Target
 	selectedProjects map[string]bool
 
+	moduleInspector bool
+	moduleTarget    *project.Target
+
 	batchMode   bool
 	batchAction string
 	batchItems  []batchItem
@@ -305,6 +308,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		key := msg.String()
 
+		if m.moduleInspector {
+			switch key {
+			case "esc", "q":
+				m.moduleInspector = false
+				m.moduleTarget = nil
+			}
+
+			return m, nil
+		}
+
 		if m.projectMode {
 			switch key {
 			case "esc", "o", "O":
@@ -352,7 +365,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					target := m.projectTargets[m.projectCursor]
 
 					if target.Role == project.RoleModule {
-						m.projectErr = fmt.Errorf("module target selected: inspector coming next; plan/apply disabled for reusable modules")
+						m.moduleInspector = true
+						m.moduleTarget = &target
 						return m, nil
 					}
 
@@ -716,6 +730,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) View() tea.View {
 	if m.width == 0 || m.height == 0 {
 		return tea.NewView("")
+	}
+
+	if m.moduleInspector {
+		return tea.NewView(lipgloss.Place(
+			m.width,
+			m.height,
+			lipgloss.Center,
+			lipgloss.Top,
+			m.renderModuleInspector(),
+		))
 	}
 
 	if m.projectMode {
