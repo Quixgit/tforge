@@ -375,11 +375,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			switch key {
+			case "/":
+				m.projectFiltering = true
+				m.projectFilter = ""
+				return m, nil
+
 			case "g", "G":
 				m.graphMode = !m.graphMode
 				return m, nil
 
 			case "esc", "o", "O":
+				if m.graphMode {
+					m.graphMode = false
+					return m, nil
+				}
+
 				m.projectMode = false
 
 			case "up", "k":
