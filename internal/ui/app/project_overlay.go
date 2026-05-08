@@ -53,7 +53,7 @@ func (m Model) renderProjectOverlay(background string) string {
 	}
 
 	lines = append(lines, "")
-	lines = append(lines, dimStyle.Render("Space select | Enter switch | j/k move | Esc close"))
+	lines = append(lines, dimStyle.Render("Space select | P plan selected | A apply selected | Enter switch | Esc close"))
 
 	box := focusedBorderStyle.
 		Width(min(120, m.width-10)).
