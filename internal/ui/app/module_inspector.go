@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/quix/tforge/internal/moduleparser"
 	"github.com/quix/tforge/internal/project"
 )
 
@@ -42,9 +43,9 @@ func (m Model) renderModuleInspector() string {
 
 	switch m.moduleTab {
 	case 0:
-		lines = append(lines, renderStringList("Variables", m.parsedModule.Variables)...)
+		lines = append(lines, renderVariables(m.parsedModule.Variables)...)
 	case 1:
-		lines = append(lines, renderStringList("Outputs", m.parsedModule.Outputs)...)
+		lines = append(lines, renderOutputs(m.parsedModule.Outputs)...)
 	case 2:
 		lines = append(lines, renderStringList("Resources", m.parsedModule.Resources)...)
 	case 3:
@@ -91,4 +92,73 @@ func renderStringList(title string, items []string) []string {
 
 func isModuleTarget(t project.Target) bool {
 	return t.Role == project.RoleModule
+}
+
+func renderVariables(vars []moduleparser.Variable) []string {
+	lines := []string{
+		infoBarStyle.Render("Variables"),
+		"",
+	}
+
+	if len(vars) == 0 {
+		return append(lines, dimStyle.Render("No variables found"))
+	}
+
+	for i, v := range vars {
+		if i >= 12 {
+			lines = append(lines,
+				dimStyle.Render(fmt.Sprintf("...and %d more", len(vars)-i)))
+			break
+		}
+
+		required := "optional"
+		if v.Required {
+			required = "required"
+		}
+
+		lines = append(lines,
+			" • "+v.Name,
+			"    type: "+fallback(v.Type, "any"),
+			"    "+required,
+		)
+
+		if v.Default != "" {
+			lines = append(lines,
+				"    default: "+v.Default)
+		}
+
+		if v.Description != "" {
+			lines = append(lines,
+				"    desc: "+v.Description)
+		}
+
+		lines = append(lines, "")
+	}
+
+	return lines
+}
+
+func fallback(v string, d string) string {
+	if v == "" {
+		return d
+	}
+
+	return v
+}
+
+func renderOutputs(outputs []moduleparser.Output) []string {
+	lines := []string{
+		infoBarStyle.Render("Outputs"),
+		"",
+	}
+
+	if len(outputs) == 0 {
+		return append(lines, dimStyle.Render("No outputs found"))
+	}
+
+	for _, o := range outputs {
+		lines = append(lines, " • "+o.Name)
+	}
+
+	return lines
 }
