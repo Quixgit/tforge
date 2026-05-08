@@ -9,6 +9,7 @@ import (
 
 	"github.com/quix/tforge/internal/core/events"
 	"github.com/quix/tforge/internal/core/state"
+	"github.com/quix/tforge/internal/deps"
 	"github.com/quix/tforge/internal/execution"
 	"github.com/quix/tforge/internal/history"
 	"github.com/quix/tforge/internal/moduleparser"
@@ -84,6 +85,7 @@ type Model struct {
 	taskStalePlan bool
 	retryAction   string
 	retryReady    bool
+	needsInit     bool
 	taskScroll    int
 	taskEvents    <-chan events.Event
 
@@ -92,6 +94,9 @@ type Model struct {
 	loading bool
 	err     error
 	rows    []resources.Row
+
+	dependencyGraph deps.Graph
+	graphMode       bool
 
 	runtime RuntimeInfo
 }
@@ -154,6 +159,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		m.projectTargets = msg.targets
+
+		graph, _ := deps.Build(msg.targets)
+		m.dependencyGraph = graph
 		m.projectCursor = 0
 		m.projectMode = true
 		return m, nil
@@ -161,6 +169,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case projectTargetsLoadedMsg:
 		m.projectErr = msg.err
 		m.projectTargets = msg.targets
+
+		graph, _ := deps.Build(msg.targets)
+		m.dependencyGraph = graph
 		m.projectCursor = 0
 		return m, nil
 
@@ -203,6 +214,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case scanFinishedMsg:
 		m.loading = false
 		m.err = msg.err
+
+		if msg.err != nil {
+			m.needsInit = requiresTerraformInit(msg.err.Error())
+		}
 		m.rows = msg.rows
 
 		if m.retryAction != "" {
