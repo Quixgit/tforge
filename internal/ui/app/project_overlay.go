@@ -18,7 +18,7 @@ func (m Model) renderProjectOverlay(background string) string {
 		lines = append(lines, errorStyle.Render(m.projectErr.Error()))
 	}
 
-	if len(m.projectTargets) == 0 && m.projectErr == nil {
+	if len(m.filteredProjectTargets()) == 0 && m.projectErr == nil {
 		lines = append(lines, dimStyle.Render("No Terraform/Terragrunt/OpenTofu targets found"))
 	}
 
@@ -29,7 +29,7 @@ func (m Model) renderProjectOverlay(background string) string {
 		start = m.projectCursor - viewportH + 1
 	}
 
-	end := min(len(m.projectTargets), start+viewportH)
+	end := min(len(m.filteredProjectTargets()), start+viewportH)
 
 	for i := start; i < end; i++ {
 		t := m.projectTargets[i]

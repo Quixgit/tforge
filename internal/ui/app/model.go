@@ -52,6 +52,9 @@ type Model struct {
 	projectTargets   []project.Target
 	selectedProjects map[string]bool
 
+	projectFiltering bool
+	projectFilter    string
+
 	moduleInspector bool
 	moduleTarget    *project.Target
 	parsedModule    moduleparser.Module
@@ -330,6 +333,32 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		if m.projectMode {
+
+			if m.projectFiltering {
+				switch key {
+				case "esc":
+					m.projectFiltering = false
+					m.projectFilter = ""
+					return m, nil
+
+				case "enter":
+					m.projectFiltering = false
+					return m, nil
+
+				case "backspace":
+					if len(m.projectFilter) > 0 {
+						m.projectFilter = m.projectFilter[:len(m.projectFilter)-1]
+					}
+					return m, nil
+
+				default:
+					if len(key) == 1 {
+						m.projectFilter += key
+					}
+					return m, nil
+				}
+			}
+
 			switch key {
 			case "esc", "o", "O":
 				m.projectMode = false
