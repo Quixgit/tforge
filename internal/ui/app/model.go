@@ -51,6 +51,11 @@ type Model struct {
 	projectTargets   []project.Target
 	selectedProjects map[string]bool
 
+	batchMode   bool
+	batchAction string
+	batchItems  []batchItem
+	batchCursor int
+
 	workspaceMode    bool
 	analyticsMode    bool
 	providersMode    bool
@@ -99,6 +104,27 @@ func (m Model) Init() tea.Cmd {
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case batchNextMsg:
+		idx := m.nextBatchIndex()
+		if idx == -1 {
+			return m, nil
+		}
+
+		m.batchItems[idx].Status = batchRunning
+		return m, runBatchItemCmd(m.runtime, m.batchItems[idx], idx, m.batchAction)
+
+	case batchItemFinishedMsg:
+		if msg.index >= 0 && msg.index < len(m.batchItems) {
+			if msg.err != nil {
+				m.batchItems[msg.index].Status = batchFailed
+				m.batchItems[msg.index].Error = msg.err.Error()
+			} else {
+				m.batchItems[msg.index].Status = batchSuccess
+			}
+		}
+
+		return m, func() tea.Msg { return batchNextMsg{} }
+
 	case projectAutoMsg:
 		if msg.err != nil {
 			m.projectErr = msg.err
@@ -306,6 +332,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						m.selectedProjects[target.Dir] = true
 					}
 				}
+
+			case "P":
+				m.batchItems = m.selectedProjectItems()
+				m.batchAction = "plan"
+				m.batchMode = true
+				return m, func() tea.Msg { return batchNextMsg{} }
+
+			case "A":
+				m.batchItems = m.selectedProjectItems()
+				m.batchAction = "apply"
+				m.batchMode = true
+				return m, func() tea.Msg { return batchNextMsg{} }
 
 			case "enter":
 				if len(m.projectTargets) > 0 &&
