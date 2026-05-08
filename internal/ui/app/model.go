@@ -45,10 +45,11 @@ type Model struct {
 	historyErr     error
 	historyEntries []history.Entry
 
-	projectMode    bool
-	projectCursor  int
-	projectErr     error
-	projectTargets []project.Target
+	projectMode      bool
+	projectCursor    int
+	projectErr       error
+	projectTargets   []project.Target
+	selectedProjects map[string]bool
 
 	workspaceMode    bool
 	analyticsMode    bool
@@ -291,6 +292,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "down", "j":
 				if m.projectCursor < len(m.projectTargets)-1 {
 					m.projectCursor++
+				}
+
+			case " ":
+				if len(m.projectTargets) > 0 &&
+					m.projectCursor < len(m.projectTargets) {
+
+					target := m.projectTargets[m.projectCursor]
+
+					if m.selectedProjects[target.Dir] {
+						delete(m.selectedProjects, target.Dir)
+					} else {
+						m.selectedProjects[target.Dir] = true
+					}
 				}
 
 			case "enter":

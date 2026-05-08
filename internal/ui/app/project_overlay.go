@@ -6,8 +6,10 @@ import (
 )
 
 func (m Model) renderProjectOverlay(background string) string {
+	selected := len(m.selectedProjects)
+
 	lines := []string{
-		infoBarStyle.Render("Project Targets"),
+		infoBarStyle.Render(fmt.Sprintf("Project Targets • %d selected", selected)),
 		dimStyle.Render("root: " + m.runtime.Root),
 		"",
 	}
@@ -33,7 +35,13 @@ func (m Model) renderProjectOverlay(background string) string {
 		t := m.projectTargets[i]
 
 		kind := string(t.Kind)
-		line := fmt.Sprintf("%-12s %s", kind, t.Name)
+		marker := "[ ]"
+
+		if m.selectedProjects[t.Dir] {
+			marker = "[✓]"
+		}
+
+		line := fmt.Sprintf("%s %-12s %s", marker, kind, t.Name)
 
 		if i == m.projectCursor {
 			line = cursorStyle.Render("> " + line)
@@ -45,7 +53,7 @@ func (m Model) renderProjectOverlay(background string) string {
 	}
 
 	lines = append(lines, "")
-	lines = append(lines, dimStyle.Render("Enter switch | j/k move | Esc close"))
+	lines = append(lines, dimStyle.Render("Space select | Enter switch | j/k move | Esc close"))
 
 	box := focusedBorderStyle.
 		Width(min(120, m.width-10)).
