@@ -7,6 +7,7 @@ import (
 
 func (m Model) renderProjectOverlay(background string) string {
 	selected := len(m.selectedProjects)
+	targets := m.filteredProjectTargets()
 
 	lines := []string{
 		infoBarStyle.Render(fmt.Sprintf("Project Targets • %d selected", selected)),
@@ -14,11 +15,15 @@ func (m Model) renderProjectOverlay(background string) string {
 		"",
 	}
 
+	if m.projectFiltering || m.projectFilter != "" {
+		lines = append(lines, infoBarStyle.Render("Search: "+m.projectFilter), "")
+	}
+
 	if m.projectErr != nil {
 		lines = append(lines, errorStyle.Render(m.projectErr.Error()))
 	}
 
-	if len(m.filteredProjectTargets()) == 0 && m.projectErr == nil {
+	if len(targets) == 0 && m.projectErr == nil {
 		lines = append(lines, dimStyle.Render("No Terraform/Terragrunt/OpenTofu targets found"))
 	}
 
@@ -29,10 +34,10 @@ func (m Model) renderProjectOverlay(background string) string {
 		start = m.projectCursor - viewportH + 1
 	}
 
-	end := min(len(m.filteredProjectTargets()), start+viewportH)
+	end := min(len(targets), start+viewportH)
 
 	for i := start; i < end; i++ {
-		t := m.projectTargets[i]
+		t := targets[i]
 
 		kind := string(t.Kind)
 		marker := "[ ]"
@@ -54,7 +59,7 @@ func (m Model) renderProjectOverlay(background string) string {
 	}
 
 	lines = append(lines, "")
-	lines = append(lines, dimStyle.Render("Space toggle | Enter inspect/open | / search | G graph | Esc close"))
+	lines = append(lines, dimStyle.Render("↑/↓ move | Space select | Enter inspect/open | / search | G graph | q quit"))
 
 	box := focusedBorderStyle.
 		Width(min(120, m.width-10)).
