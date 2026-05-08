@@ -320,7 +320,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.projectCursor++
 				}
 
-			case " ":
+			case " ", "space":
 				if len(m.projectTargets) > 0 &&
 					m.projectCursor < len(m.projectTargets) {
 
@@ -350,6 +350,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.projectCursor < len(m.projectTargets) {
 
 					target := m.projectTargets[m.projectCursor]
+
+					if target.Role == project.RoleModule {
+						m.projectErr = fmt.Errorf("module target selected: inspector coming next; plan/apply disabled for reusable modules")
+						return m, nil
+					}
 
 					m.projectMode = false
 					m.loading = true
@@ -711,6 +716,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) View() tea.View {
 	if m.width == 0 || m.height == 0 {
 		return tea.NewView("")
+	}
+
+	if m.projectMode {
+		return tea.NewView(lipgloss.Place(
+			m.width,
+			m.height,
+			lipgloss.Center,
+			lipgloss.Top,
+			m.renderProjectView(),
+		))
 	}
 
 	if m.loading {

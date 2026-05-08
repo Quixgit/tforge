@@ -41,7 +41,8 @@ func (m Model) renderProjectOverlay(background string) string {
 			marker = "[✓]"
 		}
 
-		line := fmt.Sprintf("%s %-12s %s", marker, kind, t.Name)
+		role := string(t.Role)
+		line := fmt.Sprintf("%s %-9s %-12s %s", marker, role, kind, t.Name)
 
 		if i == m.projectCursor {
 			line = cursorStyle.Render("> " + line)
@@ -53,7 +54,7 @@ func (m Model) renderProjectOverlay(background string) string {
 	}
 
 	lines = append(lines, "")
-	lines = append(lines, dimStyle.Render("Space select | P plan selected | A apply selected | Enter switch | Esc close"))
+	lines = append(lines, dimStyle.Render("Space toggle | Enter open stack | P plan selected stacks | A apply selected stacks | Esc close"))
 
 	box := focusedBorderStyle.
 		Width(min(120, m.width-10)).
