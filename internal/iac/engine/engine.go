@@ -11,6 +11,7 @@ type Engine interface {
 	Binary() string
 
 	Init(ctx context.Context, dir string) error
+	Validate(ctx context.Context, dir string) (<-chan events.Event, error)
 	Plan(ctx context.Context, dir string) (<-chan events.Event, error)
 	Apply(ctx context.Context, dir string) (<-chan events.Event, error)
 	Destroy(ctx context.Context, dir string) (<-chan events.Event, error)

@@ -24,6 +24,22 @@ func New(binary string) engine.Engine {
 	}
 }
 
+func (e Engine) Validate(ctx context.Context, dir string) (<-chan events.Event, error) {
+	args := []string{"validate", "-no-color"}
+
+	if e.RunAll {
+		args = []string{"run-all", "validate", "-no-color", "--terragrunt-non-interactive"}
+	}
+
+	return e.Runner.Stream(ctx, runtime.CommandSpec{
+		Engine:  e.Name(),
+		Binary:  e.Binary(),
+		Dir:     dir,
+		Command: "validate",
+		Args:    args,
+	})
+}
+
 func (e Engine) Plan(ctx context.Context, dir string) (<-chan events.Event, error) {
 	args := []string{"plan", "-input=false", "-no-color"}
 
