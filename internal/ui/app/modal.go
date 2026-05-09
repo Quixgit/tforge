@@ -19,7 +19,7 @@ func (m Model) renderActionModalOverlay(background string) string {
 	fmt.Fprintln(&b, centered.Render(title))
 	fmt.Fprintln(&b, centered.Render(strings.Repeat("─", width-6)))
 
-	for i, action := range actions {
+	for i, action := range m.availableActions() {
 		line := "    " + action
 		if i == m.actionCursor {
 			line = cursorStyle.Render("  > " + action)
