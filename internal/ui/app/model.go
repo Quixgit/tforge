@@ -373,24 +373,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		if m.projectMode {
-
 			if m.projectFiltering {
 				switch key {
 				case "esc":
 					m.projectFiltering = false
 					m.projectFilter = ""
 					return m, nil
-
 				case "enter":
 					m.projectFiltering = false
 					return m, nil
-
 				case "backspace":
 					if len(m.projectFilter) > 0 {
 						m.projectFilter = m.projectFilter[:len(m.projectFilter)-1]
 					}
 					return m, nil
-
 				default:
 					if len(key) == 1 {
 						m.projectFilter += key
@@ -414,7 +410,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.graphMode = false
 					return m, nil
 				}
-
 				m.projectMode = false
 				return m, nil
 
@@ -422,24 +417,26 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.projectCursor > 0 {
 					m.projectCursor--
 				}
+				return m, nil
 
 			case "down", "j":
-				if m.projectCursor < len(m.projectTargets)-1 {
+				targets := m.filteredProjectTargets()
+				if m.projectCursor < len(targets)-1 {
 					m.projectCursor++
 				}
+				return m, nil
 
 			case " ", "space":
-				if len(m.projectTargets) > 0 &&
-					m.projectCursor < len(m.projectTargets) {
-
-					target := m.projectTargets[m.projectCursor]
-
+				targets := m.filteredProjectTargets()
+				if len(targets) > 0 && m.projectCursor < len(targets) {
+					target := targets[m.projectCursor]
 					if m.selectedProjects[target.Dir] {
 						delete(m.selectedProjects, target.Dir)
 					} else {
 						m.selectedProjects[target.Dir] = true
 					}
 				}
+				return m, nil
 
 			case "P":
 				m.batchItems = m.selectedProjectItems()
@@ -454,10 +451,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, func() tea.Msg { return batchNextMsg{} }
 
 			case "enter":
-				if len(m.projectTargets) > 0 &&
-					m.projectCursor < len(m.projectTargets) {
-
-					target := m.projectTargets[m.projectCursor]
+				targets := m.filteredProjectTargets()
+				if len(targets) > 0 && m.projectCursor < len(targets) {
+					target := targets[m.projectCursor]
 
 					if target.Role == project.RoleModule {
 						parsed, _ := moduleparser.Parse(target.Dir)
@@ -468,6 +464,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						m.moduleTarget = &target
 						m.parsedModule = parsed
 						m.moduleTab = 0
+						m.graphMode = false
 
 						return m, nil
 					}
@@ -475,12 +472,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.projectMode = false
 					m.loading = true
 					m.err = nil
-
+					m.activeTarget = &target
 					m.runtime.Dir = target.Dir
 					m.runtime.Engine = string(target.Kind)
 
 					return m, scanCmd(m.runtime)
 				}
+				return m, nil
 			}
 
 			return m, nil
