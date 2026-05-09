@@ -693,12 +693,40 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.actionCursor--
 				}
 			case "down", "j":
-				if m.actionCursor < len(actions)-1 {
+				if m.actionCursor < len(m.availableActions())-1 {
 					m.actionCursor++
 				}
 			case "enter":
-				action := actions[m.actionCursor]
+				action := m.availableActions()[m.actionCursor]
 				m.actionMode = false
+
+				if m.activeTarget != nil && m.activeTarget.Role == project.RoleModule {
+					switch action {
+					case "validate":
+						m.taskMode = true
+						m.taskName = "validate"
+						m.taskDone = false
+						m.taskScroll = 0
+						m.taskLogs = []string{"Running terraform validate for module..."}
+						return m, startTaskCmd(m.runtime, "validate")
+
+					case "security":
+						m.riskMode = true
+						return m, nil
+
+					case "graph":
+						m.graphMode = true
+						return m, nil
+
+					case "docs":
+						m.moduleTab = 0
+						return m, nil
+
+					case "projects":
+						m.projectMode = true
+						return m, loadProjectTargetsCmd(m.runtime.Root)
+					}
+				}
 
 				if action == "apply" || action == "destroy" {
 					m.confirmMode = true
