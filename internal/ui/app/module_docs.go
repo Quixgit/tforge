@@ -11,6 +11,11 @@ func (m Model) renderModuleDocs() []string {
 		"",
 	}
 
+	if readme := m.readModuleReadme(); readme != "" {
+		lines = append(lines, strings.Split(readme, "\n")...)
+		return lines
+	}
+
 	if m.moduleTarget == nil {
 		return append(lines, dimStyle.Render("No active module"))
 	}
