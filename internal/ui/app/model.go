@@ -1124,6 +1124,15 @@ func renderKeyHint(key, desc string) string {
 }
 
 func (m Model) renderHelpBar() string {
+	if m.activeTarget == nil && len(m.rows) == 0 {
+		hints := []string{
+			renderKeyHint("O", "open projects"),
+			renderKeyHint("q", "quit"),
+		}
+
+		return " " + strings.Join(hints, "  ")
+	}
+
 	hideText := "hide unchanged"
 	if m.hideNoop {
 		hideText = "show unchanged"
