@@ -855,6 +855,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.historyMode = true
 			m.historyDetail = false
 			return m, loadHistoryCmd()
+		case "i", "I":
+			if requiresTerraformInit(m.err.Error()) {
+				m.err = nil
+				m.taskMode = true
+				m.taskName = "init"
+				m.taskDone = false
+				m.taskScroll = 0
+				m.taskLogs = []string{"Running terraform init..."}
+				return m, startInitCmd(m.runtime)
+			}
+
 		case "ctrl+r":
 			m.loading = true
 			m.err = nil
@@ -900,7 +911,7 @@ func (m Model) View() tea.View {
 			m.height,
 			lipgloss.Center,
 			lipgloss.Center,
-			focusedBorderStyle.Render(errorStyle.Render("Scan failed")+"\n\n"+m.err.Error()+"\n\nPress Ctrl+r to retry | q to quit"),
+			focusedBorderStyle.Render(m.renderScanError()),
 		))
 	}
 
