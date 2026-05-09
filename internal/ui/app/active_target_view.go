@@ -48,7 +48,7 @@ func (m Model) renderActiveModuleView() string {
 	)
 
 	footer := dimStyle.Render(
-		"1-4 tabs | G graph | O projects | q quit",
+		"1-5 tabs | ↑/↓ scroll | G graph | Tab actions | O projects | q quit",
 	)
 
 	content := strings.Join([]string{
