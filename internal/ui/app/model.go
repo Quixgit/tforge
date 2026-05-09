@@ -708,7 +708,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						m.taskDone = false
 						m.taskScroll = 0
 						m.taskLogs = []string{"Running terraform validate for module..."}
-						return m, startTaskCmd(m.runtime, "validate")
+						return m, startTaskCmd(m.taskRuntime(), "validate")
 
 					case "security":
 						m.riskMode = true
