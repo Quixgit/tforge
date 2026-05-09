@@ -47,6 +47,8 @@ func startTaskCmd(rt RuntimeInfo, action string) tea.Cmd {
 			ch, err = runtime.Engine.Apply(ctx, rt.Dir)
 		case "destroy":
 			ch, err = runtime.Engine.Destroy(ctx, rt.Dir)
+		case "validate":
+			ch, err = runtime.Engine.Validate(ctx, rt.Dir)
 		default:
 			return taskStartedMsg{err: errUnsupportedAction(action)}
 		}

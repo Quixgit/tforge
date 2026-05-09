@@ -43,6 +43,16 @@ func (b Base) Init(ctx context.Context, dir string) error {
 	return err
 }
 
+func (b Base) Validate(ctx context.Context, dir string) (<-chan events.Event, error) {
+	return b.Runner.Stream(ctx, runtime.CommandSpec{
+		Engine:  b.EngineName,
+		Binary:  b.Bin,
+		Dir:     dir,
+		Command: "validate",
+		Args:    []string{"validate", "-no-color"},
+	})
+}
+
 func (b Base) Plan(ctx context.Context, dir string) (<-chan events.Event, error) {
 	return b.Runner.Stream(ctx, runtime.CommandSpec{
 		Engine:  b.EngineName,
