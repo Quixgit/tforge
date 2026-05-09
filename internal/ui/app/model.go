@@ -60,6 +60,7 @@ type Model struct {
 	moduleTarget    *project.Target
 	parsedModule    moduleparser.Module
 	moduleTab       int
+	moduleScroll    int
 
 	activeTarget *project.Target
 
@@ -340,15 +341,24 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, loadProjectTargetsCmd(m.runtime.Root)
 			case "1":
 				m.moduleTab = 0
+				m.moduleScroll = 0
+				m.graphMode = false
 			case "2":
 				m.moduleTab = 1
+				m.moduleScroll = 0
+				m.graphMode = false
 			case "3":
 				m.moduleTab = 2
+				m.moduleScroll = 0
+				m.graphMode = false
 			case "4":
 				m.moduleTab = 3
+				m.moduleScroll = 0
+				m.graphMode = false
 
 			case "g", "G":
 				m.graphMode = !m.graphMode
+				m.moduleScroll = 0
 			}
 
 			return m, nil

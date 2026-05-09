@@ -27,6 +27,7 @@ func (m Model) renderModuleInspector() string {
 		tabLabel("2", "Outputs", m.moduleTab == 1),
 		tabLabel("3", "Resources", m.moduleTab == 2),
 		tabLabel("4", "Providers", m.moduleTab == 3),
+		tabLabel("5", "Docs", m.moduleTab == 4),
 	}
 
 	lines := []string{
@@ -52,7 +53,7 @@ func (m Model) renderModuleInspector() string {
 		lines = append(lines, renderStringList("Providers", m.parsedModule.Providers)...)
 	}
 
-	lines = append(lines, "", dimStyle.Render("1/2/3/4 switch tabs"))
+	lines = append(lines, "", dimStyle.Render("1/2/3/4/5 switch tabs"))
 
 	s.WriteString(
 		strings.Join(lines, "\n"),
