@@ -463,7 +463,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						parsed, _ := moduleparser.Parse(target.Dir)
 
 						m.projectMode = false
-						m.moduleInspector = true
+						m.moduleInspector = false
+						m.activeTarget = &target
 						m.moduleTarget = &target
 						m.parsedModule = parsed
 						m.moduleTab = 0
@@ -962,7 +963,9 @@ func (m Model) renderFilterBox() string {
 func (m Model) renderResourcesBox() string {
 	rows := m.visibleRows()
 	if len(rows) == 0 {
-		rows = resources.DemoRows()
+		return resourceBorderStyle.
+			Width(m.viewWidth).
+			Render(dimStyle.Render("No resources loaded. Press 'O' to open project targets."))
 	}
 
 	visible := m.visibleResourceRows()
