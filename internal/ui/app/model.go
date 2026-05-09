@@ -61,6 +61,8 @@ type Model struct {
 	parsedModule    moduleparser.Module
 	moduleTab       int
 
+	activeTarget *project.Target
+
 	batchMode   bool
 	batchAction string
 	batchItems  []batchItem
@@ -329,6 +331,29 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		key := msg.String()
 
+		if m.activeTarget != nil && m.activeTarget.Role == project.RoleModule && !m.projectMode {
+			switch key {
+			case "q", "ctrl+c":
+				return m, tea.Quit
+			case "o", "O", "esc":
+				m.projectMode = true
+				return m, loadProjectTargetsCmd(m.runtime.Root)
+			case "1":
+				m.moduleTab = 0
+			case "2":
+				m.moduleTab = 1
+			case "3":
+				m.moduleTab = 2
+			case "4":
+				m.moduleTab = 3
+
+			case "g", "G":
+				m.graphMode = !m.graphMode
+			}
+
+			return m, nil
+		}
+
 		if m.moduleInspector {
 			switch key {
 			case "esc", "q":
@@ -391,6 +416,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 
 				m.projectMode = false
+				return m, nil
 
 			case "up", "k":
 				if m.projectCursor > 0 {
@@ -436,6 +462,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					if target.Role == project.RoleModule {
 						parsed, _ := moduleparser.Parse(target.Dir)
 
+						m.projectMode = false
 						m.moduleInspector = true
 						m.moduleTarget = &target
 						m.parsedModule = parsed
@@ -816,20 +843,8 @@ func (m Model) View() tea.View {
 		))
 	}
 
-	if m.projectMode {
-		content := m.renderProjectView()
-
-		if m.graphMode {
-			content = m.renderGraphOverlay()
-		}
-
-		return tea.NewView(lipgloss.Place(
-			m.width,
-			m.height,
-			lipgloss.Center,
-			lipgloss.Top,
-			content,
-		))
+	if m.activeTarget != nil && m.activeTarget.Role == project.RoleModule && !m.projectMode {
+		return tea.NewView(m.renderActiveTargetView())
 	}
 
 	if m.loading {
@@ -901,6 +916,18 @@ func (m Model) View() tea.View {
 
 	if m.historyMode {
 		view = m.renderHistoryOverlay(view)
+	}
+
+	if m.projectMode {
+		view = m.renderProjectOverlay(view)
+	}
+
+	if m.moduleInspector {
+		view = m.renderModuleInspectorOverlay(view)
+	}
+
+	if m.graphMode {
+		view = m.renderGraphOverlayOnView(view)
 	}
 
 	return tea.NewView(view)

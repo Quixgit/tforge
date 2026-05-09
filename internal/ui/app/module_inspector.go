@@ -52,7 +52,7 @@ func (m Model) renderModuleInspector() string {
 		lines = append(lines, renderStringList("Providers", m.parsedModule.Providers)...)
 	}
 
-	lines = append(lines, "", dimStyle.Render("1/2/3/4 switch tabs | Esc back"))
+	lines = append(lines, "", dimStyle.Render("1/2/3/4 switch tabs"))
 
 	s.WriteString(
 		strings.Join(lines, "\n"),
