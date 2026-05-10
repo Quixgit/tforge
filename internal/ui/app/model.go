@@ -61,6 +61,7 @@ type Model struct {
 	parsedModule    moduleparser.Module
 	moduleTab       int
 	moduleScroll    int
+	securityTools   SecurityTools
 
 	activeTarget *project.Target
 
@@ -721,8 +722,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						return m, startTaskCmd(m.taskRuntime(), "validate")
 
 					case "security":
-						m.riskMode = true
-						return m, nil
+						m.taskMode = true
+						m.taskName = "security"
+						m.taskDone = false
+						m.taskScroll = 0
+						m.taskLogs = []string{"Running module security checks..."}
+						return m, startSecurityCmd(m.taskRuntime())
 
 					case "graph":
 						m.graphMode = true
