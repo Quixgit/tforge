@@ -36,8 +36,17 @@ func (m Model) renderProjectOverlay(background string) string {
 
 	end := min(len(targets), start+viewportH)
 
+	lastGroup := ""
+
 	for i := start; i < end; i++ {
 		t := targets[i]
+
+		group := projectGroup(t.Name)
+		if group != lastGroup {
+			lines = append(lines, "")
+			lines = append(lines, infoBarStyle.Render(group))
+			lastGroup = group
+		}
 
 		kind := string(t.Kind)
 		marker := "[ ]"
@@ -47,7 +56,8 @@ func (m Model) renderProjectOverlay(background string) string {
 		}
 
 		role := string(t.Role)
-		line := fmt.Sprintf("%s %-9s %-12s %s", marker, role, kind, t.Name)
+		name := projectShortName(t.Name)
+		line := fmt.Sprintf("%s %-9s %-12s %s", marker, role, kind, name)
 
 		if i == m.projectCursor {
 			line = cursorStyle.Render("> " + line)
